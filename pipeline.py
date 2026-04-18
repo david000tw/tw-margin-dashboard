@@ -144,9 +144,9 @@ if __name__ == "__main__":
         append_record(record)
     elif cmd == "rebuild":
         rebuild_dashboard()
-    elif cmd == "dates":
-        list_dates()
     elif cmd == "status":
         show_status()
+    elif cmd == "dates":
+        list_dates()
     else:
         print(__doc__)
