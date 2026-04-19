@@ -1,0 +1,338 @@
+- generic [ref=e2]:
+  - region
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - generic [ref=e7]:
+      - banner "Global Navigation Menu" [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e10]:
+            - button "Open menu" [ref=e12] [cursor=pointer]:
+              - img [ref=e13]
+            - link "Homepage (g then d)" [ref=e15] [cursor=pointer]:
+              - /url: /
+              - img [ref=e16]
+          - generic [ref=e18]:
+            - navigation "Breadcrumbs" [ref=e19]:
+              - list [ref=e20]:
+                - listitem [ref=e21]:
+                  - link "david000tw" [ref=e22] [cursor=pointer]:
+                    - /url: /david000tw
+                    - generic [ref=e23]: david000tw
+                - listitem [ref=e24]:
+                  - link "tw-margin-dashboard" [ref=e25] [cursor=pointer]:
+                    - /url: /david000tw/tw-margin-dashboard
+                    - generic [ref=e26]: tw-margin-dashboard
+            - button "Search or jump to…" [ref=e29] [cursor=pointer]:
+              - generic [ref=e30]:
+                - generic:
+                  - img
+                - generic [ref=e31]:
+                  - generic:
+                    - text: Type
+                    - generic: /
+                    - text: to search
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - generic [ref=e36]:
+                - link "Chat with Copilot" [ref=e38] [cursor=pointer]:
+                  - /url: /copilot
+                  - img [ref=e39]
+                - button "Open Copilot…" [ref=e43] [cursor=pointer]:
+                  - generic:
+                    - img
+              - button "Create new..." [ref=e45] [cursor=pointer]:
+                - generic [ref=e46]:
+                  - generic:
+                    - img
+                - generic:
+                  - img
+              - link "Issues" [ref=e47] [cursor=pointer]:
+                - /url: /issues
+                - img [ref=e48]
+              - link "Pull requests" [ref=e51] [cursor=pointer]:
+                - /url: /pulls
+                - img [ref=e52]
+              - link "Repositories" [ref=e54] [cursor=pointer]:
+                - /url: /repos
+                - img [ref=e55]
+            - button "Open user navigation menu" [ref=e58] [cursor=pointer]:
+              - img "User avatar" [ref=e59]
+        - heading "Repository navigation" [level=2] [ref=e60]
+        - navigation "Repository" [ref=e61]:
+          - list [ref=e62]:
+            - listitem [ref=e63]:
+              - link "Code" [ref=e64] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard
+                - img [ref=e66]
+                - generic [ref=e68]: Code
+            - listitem [ref=e69]:
+              - link "Issues" [ref=e70] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/issues
+                - img [ref=e72]
+                - generic [ref=e75]: Issues
+            - listitem [ref=e76]:
+              - link "Pull requests" [ref=e77] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/pulls
+                - img [ref=e79]
+                - generic [ref=e81]: Pull requests
+            - listitem [ref=e82]:
+              - link "Agents" [ref=e83] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/agents?author=david000tw
+                - img [ref=e85]
+                - generic [ref=e88]: Agents
+            - listitem [ref=e89]:
+              - link "Actions" [ref=e90] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/actions
+                - img [ref=e92]
+                - generic [ref=e94]: Actions
+            - listitem [ref=e95]:
+              - link "Projects" [ref=e96] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/projects
+                - img [ref=e98]
+                - generic [ref=e100]: Projects
+            - listitem [ref=e101]:
+              - link "Security and quality" [ref=e102] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/security
+                - img [ref=e104]
+                - generic [ref=e106]: Security and quality
+            - listitem [ref=e107]:
+              - link "Insights" [ref=e108] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/pulse
+                - img [ref=e110]
+                - generic [ref=e112]: Insights
+            - listitem [ref=e113]:
+              - link "Settings" [ref=e114] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/settings
+                - img [ref=e116]
+                - generic [ref=e118]: Settings
+      - region "Important update" [ref=e120]:
+        - img [ref=e122]
+        - generic [ref=e125]:
+          - heading "Important update" [level=2] [ref=e127]
+          - generic [ref=e129]:
+            - text: On April 24 we'll start using GitHub Copilot interaction data for AI model training unless you opt out.
+            - link "Review this update" [ref=e130] [cursor=pointer]:
+              - /url: https://gh.io/AAzfaht
+            - text: and manage your preferences in your
+            - link "GitHub account settings" [ref=e131] [cursor=pointer]:
+              - /url: https://github.com/settings/copilot/features
+            - text: .
+        - button "Dismiss banner" [ref=e132] [cursor=pointer]:
+          - img [ref=e133]
+  - main [ref=e137]:
+    - generic [ref=e139]:
+      - 'heading "Settings: david000tw/tw-margin-dashboard" [level=1] [ref=e140]'
+      - generic [ref=e142]:
+        - navigation "General settings" [ref=e145]:
+          - list [ref=e147]:
+            - listitem [ref=e148]:
+              - link "General" [ref=e149] [cursor=pointer]:
+                - /url: /david000tw/tw-margin-dashboard/settings
+                - generic:
+                  - img
+                - generic [ref=e150]: General
+            - listitem [ref=e151]
+            - listitem [ref=e152]:
+              - generic [ref=e155]:
+                - heading "Access" [level=2] [ref=e157]
+                - list "Access" [ref=e158]:
+                  - listitem [ref=e159]:
+                    - link "Collaborators" [ref=e160] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/access
+                      - generic:
+                        - img
+                      - generic [ref=e161]: Collaborators
+                  - listitem [ref=e162]:
+                    - button "Moderation options" [ref=e163] [cursor=pointer]:
+                      - generic:
+                        - img
+                      - generic [ref=e164]: Moderation options
+                      - generic:
+                        - img
+            - listitem [ref=e165]
+            - listitem [ref=e166]:
+              - generic [ref=e169]:
+                - heading "Code and automation" [level=2] [ref=e171]
+                - list "Code and automation" [ref=e172]:
+                  - listitem [ref=e173]:
+                    - link "Branches" [ref=e174] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/branches
+                      - generic:
+                        - img
+                      - generic [ref=e175]: Branches
+                  - listitem [ref=e176]:
+                    - link "Tags" [ref=e177] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/tag_protection
+                      - generic:
+                        - img
+                      - generic [ref=e178]: Tags
+                  - listitem [ref=e179]:
+                    - button "Rules" [ref=e180] [cursor=pointer]:
+                      - generic:
+                        - img
+                      - generic [ref=e181]: Rules
+                      - generic:
+                        - img
+                  - listitem [ref=e182]:
+                    - button "Actions" [ref=e183] [cursor=pointer]:
+                      - generic:
+                        - img
+                      - generic [ref=e184]: Actions
+                      - generic:
+                        - img
+                  - listitem [ref=e185]:
+                    - link "Models Preview feature" [ref=e186] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/models/access-policy
+                      - generic:
+                        - img
+                      - generic [ref=e187]: Models
+                      - generic:
+                        - generic "Preview feature": Preview
+                  - listitem [ref=e188]:
+                    - link "Webhooks" [ref=e189] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/hooks
+                      - generic:
+                        - img
+                      - generic [ref=e190]: Webhooks
+                  - listitem [ref=e191]:
+                    - button "Copilot" [ref=e192] [cursor=pointer]:
+                      - generic:
+                        - img
+                      - generic [ref=e193]: Copilot
+                      - generic:
+                        - img
+                  - listitem [ref=e194]:
+                    - link "Environments" [ref=e195] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/environments
+                      - generic:
+                        - img
+                      - generic [ref=e196]: Environments
+                  - listitem [ref=e197]:
+                    - link "Codespaces" [ref=e198] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/codespaces
+                      - generic:
+                        - img
+                      - generic [ref=e199]: Codespaces
+                  - listitem [ref=e200]:
+                    - link "Pages" [ref=e201] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/pages
+                      - generic:
+                        - img
+                      - generic [ref=e202]: Pages
+            - listitem [ref=e203]
+            - listitem [ref=e204]:
+              - generic [ref=e207]:
+                - heading "Security and quality" [level=2] [ref=e209]
+                - list "Security and quality" [ref=e210]:
+                  - listitem [ref=e211]:
+                    - link "Advanced Security" [ref=e212] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/security_analysis
+                      - generic:
+                        - img
+                      - generic [ref=e213]: Advanced Security
+                  - listitem [ref=e214]:
+                    - link "Deploy keys" [ref=e215] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/keys
+                      - generic:
+                        - img
+                      - generic [ref=e216]: Deploy keys
+                  - listitem [ref=e217]:
+                    - button "Secrets and variables" [ref=e218] [cursor=pointer]:
+                      - generic:
+                        - img
+                      - generic [ref=e219]: Secrets and variables
+                      - generic:
+                        - img
+            - listitem [ref=e220]
+            - listitem [ref=e221]:
+              - generic [ref=e224]:
+                - heading "Integrations" [level=2] [ref=e226]
+                - list "Integrations" [ref=e227]:
+                  - listitem [ref=e228]:
+                    - link "GitHub Apps" [ref=e229] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/installations
+                      - generic:
+                        - img
+                      - generic [ref=e230]: GitHub Apps
+                  - listitem [ref=e231]:
+                    - link "Email notifications" [ref=e232] [cursor=pointer]:
+                      - /url: /david000tw/tw-margin-dashboard/settings/notifications
+                      - generic:
+                        - img
+                      - generic [ref=e233]: Email notifications
+        - generic [ref=e236]:
+          - heading "GitHub Pages" [level=2] [ref=e238]
+          - paragraph [ref=e239]:
+            - link "GitHub Pages" [ref=e240] [cursor=pointer]:
+              - /url: https://pages.github.com
+            - text: is designed to host your personal, organization, or project pages from a GitHub repository.
+          - heading "Build and deployment" [level=2] [ref=e241]
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - text: Source
+              - button "Source Deploy from a branch" [ref=e247] [cursor=pointer]:
+                - generic [ref=e249]: Deploy from a branch
+                - generic:
+                  - img
+            - generic [ref=e252]:
+              - strong [ref=e253]: Branch
+              - paragraph [ref=e254]:
+                - text: GitHub Pages is currently disabled. Select a source below to enable GitHub Pages for this repository.
+                - link "Learn more about configuring the publishing source for your site" [ref=e255] [cursor=pointer]:
+                  - /url: https://docs.github.com/articles/configuring-a-publishing-source-for-github-pages/
+                - text: .
+              - generic [ref=e256]:
+                - button "None" [ref=e260] [cursor=pointer]:
+                  - generic [ref=e262]: None
+                  - generic:
+                    - img
+                - button "Save" [ref=e263] [cursor=pointer]
+              - paragraph
+          - generic [ref=e264]:
+            - generic [ref=e265]:
+              - heading "Visibility" [level=3] [ref=e266]
+              - generic [ref=e267]: GitHub Enterprise
+            - paragraph [ref=e268]:
+              - text: With a GitHub Enterprise account, you can restrict access to your GitHub Pages site by publishing it privately. You can use privately published sites to share your internal documentation or knowledge base with members of your enterprise. You can try GitHub Enterprise risk-free for 30 days.
+              - link "Learn more about the visibility of your GitHub Pages site." [ref=e269] [cursor=pointer]:
+                - /url: https://docs.github.com/pages/getting-started-with-github-pages/changing-the-visibility-of-your-github-pages-site
+            - link "Start free for 30 days" [ref=e270] [cursor=pointer]:
+              - /url: /account/enterprises/new
+              - generic [ref=e272]: Start free for 30 days
+  - contentinfo [ref=e273]:
+    - heading "Footer" [level=2] [ref=e274]
+    - generic [ref=e275]:
+      - generic [ref=e276]:
+        - link "GitHub Homepage" [ref=e277] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e278]
+        - generic [ref=e280]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e281]:
+        - heading "Footer navigation" [level=3] [ref=e282]
+        - list "Footer navigation" [ref=e283]:
+          - listitem [ref=e284]:
+            - link "Terms" [ref=e285] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e286]:
+            - link "Privacy" [ref=e287] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e288]:
+            - link "Security" [ref=e289] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e290]:
+            - link "Status" [ref=e291] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e292]:
+            - link "Community" [ref=e293] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e294]:
+            - link "Docs" [ref=e295] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e296]:
+            - link "Contact" [ref=e297] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e298]:
+            - button "Manage cookies" [ref=e300] [cursor=pointer]
+          - listitem [ref=e301]:
+            - button "Do not share my personal information" [ref=e303] [cursor=pointer]
