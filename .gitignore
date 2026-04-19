@@ -31,9 +31,6 @@ logs/
 data/*.csv
 data/*.xlsx
 
-# Playwright MCP snapshot artifacts
-.playwright-mcp/
-
 # 環境變數 / 機密
 .env
 .env.local
