@@ -45,7 +45,7 @@ const imgs=Array.from(document.querySelectorAll('img')).map(i=>i.src).filter(s=>
 ### 圖片解讀規則
 - **BULL 圖**（借券賣出減少）：LEFT 欄 = 外資買超前20名 → bull codes
 - **BEAR 圖**（借券賣出增加）：LEFT 欄 = 外資賣超前20名 → bear codes
-- **RATE 圖**：讀最右日期欄數值，≥170 → rate_alert=True
+- **RATE 圖**：讀最右日期欄數值，取整數（警戒判定 `rate>=170` 由 Dashboard 即時推導，不寫入 record）
 - **FUSION 圖**：RIGHT 欄按融資減少排序，跳過法人≤0 的列，取前5個股票名稱
 
 ### Tab 導航注意事項
@@ -63,7 +63,7 @@ import json
 from pathlib import Path
 base = '/sessions/sleepy-upbeat-ramanujan/mnt/stock-analysis/法人日資料/data'
 JSON_FILE = Path(f'{base}/stock_data_YEAR.json')
-record = {{'date':'YYYY-MM-DD','bull':'...','bear':'...','rate':168,'rate_alert':False,'top5_margin_reduce_inst_buy':'...'}}
+record = {{'date':'YYYY-MM-DD','bull':'...','bear':'...','rate':168,'top5_margin_reduce_inst_buy':'...'}}
 data = json.loads(JSON_FILE.read_text(encoding='utf-8'))
 existing = {{d['date'] for d in data['data']}}
 if record['date'] not in existing:

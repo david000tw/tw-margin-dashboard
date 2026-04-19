@@ -22,6 +22,10 @@ Thumbs.db
 *.tmp
 *.bak
 ~$*
+tmp_record.json
+
+# 排程 log
+logs/
 
 # 環境變數 / 機密
 .env
