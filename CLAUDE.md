@@ -2,68 +2,54 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+使用方式、檔案清單、安裝排程等使用者面向的說明在 `README.md`，本檔只寫 Claude 在這個 codebase 需要特別知道的**不從 code 即可看出的規則與慣例**。
+
 ## Project Overview
 
-台股（Taiwan stock market）每日法人 / 借券 / 融資資料收錄與視覺化。原始資料由 scantrader.com 手動擷取（見 `scraper_guide.md`），透過 `pipeline.py` 落地成 JSON，最終 inline 進 `dashboard_all.html` 離線檢視。
+台股每日法人 / 借券 / 融資資料收錄與視覺化。scantrader.com 原始資料透過 OCR 或手動匯入，落地為 JSON，`dashboard_all.html` 以 `fetch('./data/*.json')` 呈現。
 
-## Commands
+## 非常重要的不變量（違反會靜默壞資料）
 
-All commands are run from the repo root.
+### 1. `rate_alert` 欄位不可寫入
+警戒由 `rate >= 170` 在 dashboard 與 `pipeline.py` 即時推導。record 中含此欄位會被 `validate_record()` raise 擋下。
 
-```bash
-# 新增一天資料（從 JSON 檔或直接 CLI 參數）
-python pipeline.py append <json_file>
-python pipeline.py append --date 2026-04-18 --rate 172 \
-  --bull "..." --bear "..." --top5 "..."
+### 2. Dashboard 必須透過 HTTP server 開啟
+`fetch('./data/...')` 在 `file://` 下會被 CORS 擋。使用者開 `啟動Dashboard.bat`，自動起 `python -m http.server 8899`。
 
-# 更新 dashboard_all.html header 文字（資料由 fetch 動態載入，rebuild 只同步 fallback 文字）
-python pipeline.py rebuild
+### 3. `rebuild` 是字串替換，不是 regenerate
+`pipeline.py rebuild` 以正則 `<div class="sub">...</div>` 定位後替換 header fallback 文字。若手動編輯 `dashboard_all.html` 破壞此標記，rebuild 會 raise。
 
-# 驗證資料完整性（schema、年份檔 vs merged 同步、TWII 缺漏、rate_alert 殘留）
-python pipeline.py check
+### 4. year 檔 與 merged 檔 雙軌
+`append` 同時寫兩邊；若手動改其中一邊，下次 `check` 會報 `[sync]` 錯誤。`check` 是 smoke test，append 後 / commit 前必跑。
 
-# 顯示資料概況（筆數、日期範圍、警戒日、TWII 缺漏）
-python pipeline.py status
+### 5. 股名規則
+- 逗號分隔、**不加空格、不加引號**
+- 保留 `*`（如 `可寧衛*`）、`-KY`（如 `中美-KY`）
+- 歷史資料（2021–2024）多為股號，近期（2026）改用股名。混用合法，兩者都要支援。
 
-# 列出所有已收錄的日期
-python pipeline.py dates
-```
-
-Windows 一鍵腳本：
-- `啟動Dashboard.bat` — 啟動 `python -m http.server 8899` 並用 Chrome 開啟 dashboard
-- `DailyFetch.bat` — 被排程器呼叫，執行 `claude -p "/daily-fetch" --permission-mode bypassPermissions`
-- `安裝排程.bat` / `卸載排程.bat` — 註冊 / 解除 Windows 工作排程（主 23:30 + 備援 07:00）
-
-No test suite, no linter, no build step — pure data pipeline + static HTML。`check` 指令扮演 smoke test 角色。
-
-## Architecture
-
-### Data flow
+## Architecture（資料流向）
 
 ```
-單日 JSON record
-   │
-   ▼
-pipeline.py append （含 schema 驗證）
-   │
-   ├─► data/stock_data_YYYY.json      （依日期年份分檔，排序後寫入）
-   └─► data/all_data_merged.json      （全歷史合併檔，Dashboard 的資料源）
+record (dict/json)
+  │
+  ▼
+pipeline.py append  ──► validate_record()
+  │                       │ 失敗 raise ValueError
+  │                       ▼
+  ├─► data/stock_data_YYYY.json   (年份分檔,sorted)
+  └─► data/all_data_merged.json   (合併檔,dashboard fetch 目標)
+  │
+  └─► pipeline.py check           (smoke test,必跑)
+         │
+         └─► pipeline.py rebuild   (更新 dashboard header fallback)
 
-Dashboard 由瀏覽器直接 fetch 資料：
-   dashboard_all.html ──fetch──► data/all_data_merged.json
-                      ──fetch──► data/twii_all.json
-
-pipeline.py rebuild 只更新 HTML header 的 fallback 文字
-（`<div class="sub">...</div>`），供 JS 載入前顯示。
+dashboard_all.html:
+  瀏覽器載入 → fetch ./data/all_data_merged.json
+             → fetch ./data/twii_all.json
+             → 前端 ALERT_THRESHOLD=170 判警戒
 ```
 
-**Dashboard 必須透過 HTTP server 開啟**：`file://` 協議會因 CORS 擋住 fetch。`啟動Dashboard.bat` 會起 `python -m http.server 8899` 並開 Chrome。
-
-`rebuild` 的標記（`<div class="sub">...</div>`）若被改壞會 raise RuntimeError，不再靜默失敗。
-
-### Record schema
-
-單筆資料格式（append 時的 JSON 檔內容；儲存於 year 檔 與 merged 檔）：
+## Record schema
 
 ```json
 {
@@ -75,24 +61,19 @@ pipeline.py rebuild 只更新 HTML header 的 fallback 文字
 }
 ```
 
-- `bull` / `bear`：股名或股號，**逗號分隔、無空格**。歷史資料（2021–2024）多為股號，近期（2026）改用股名。
-- 無 `rate_alert` 欄位 — 警戒由 Dashboard 直接從 `rate >= 170` 推導。append 時若 record 仍含此欄位，`validate_record()` 會 raise。
-- 股名保留特殊後綴 `*`（如 `可寧衛*`）與 `-KY`（如 `中美-KY`）。
+`rate` 是 int 100–250；`bull/bear/top5_margin_reduce_inst_buy` 是字串。
 
-### Files to know
+## 自動化擷取（`/daily-fetch`）
 
-- `pipeline.py` — 唯一的 Python 入口，~150 行，四個指令全在這裡。
-- `dashboard_all.html` — 單檔 dashboard，含 Chart.js CDN + 內嵌 RAW/TWII 資料，可離線開啟。
-- `data/all_data_merged.json` — Dashboard 的實際資料源，**所有年份檔合併後的排序陣列**。
-- `data/stock_data_YYYY.json` — 依年份分檔，結構為 `{"year": 2026, "trading_days": N, "data": [...]}`。
-- `data/twii_all.json` — 加權指數收盤價（日期 → 數值 dict）。
-- `scraper_guide.md` — scantrader.com 的資料擷取流程（手動操作瀏覽器 + OCR 圖片），不是自動化腳本。
-- `.claude/commands/daily-fetch.md` — `/daily-fetch` 斜線指令完整流程（找文章、OCR、組 record、寫入、commit、push）
+- 指令定義在 `.claude/commands/daily-fetch.md`
+- 排程由 `DailyFetch.bat` 呼叫 `claude -p` headless 執行
+- OCR 信心不足的日期會寫入 `data/manual_review.txt`，下次執行自動跳過（避免排程被同一個讀錯日卡住）
+- 資料規範與 OCR 規則集中在 `scraper_guide.md`，`daily-fetch.md` 不重複這些細節
 
 ## Working conventions
 
-- 新增資料時同時更新 **year 檔與 merged 檔**（`pipeline.py append` 會一次處理，但手動改 JSON 時兩邊都要改，否則 `pipeline.py check` 會報 sync 錯）。
-- Append 後 dashboard 會自動看到新資料（fetch 載入），**不需要 rebuild 才能更新資料**；`rebuild` 只更新 header fallback 文字。
-- 回補舊日期時，`append` 會依日期排序插入正確位置（不是 append-only）。
-- 所有 JSON 檔以 UTF-8 讀寫、`ensure_ascii=False`、`indent=2`；中文股名不轉義。
-- `pipeline.py check` 作為 smoke test：append 後、commit 前跑一次，可擋 schema 錯誤、檔案不同步、rate_alert 殘留。
+- Append 後 dashboard 會自動看到新資料（fetch 載入），**不需要 rebuild 才能更新資料**；`rebuild` 只更新 header fallback 文字
+- 回補舊日期時，`append` 會依日期排序插入正確位置（不是 append-only）
+- 所有 JSON 檔 UTF-8 + `ensure_ascii=False` + `indent=2`；中文股名不轉義
+- `check` 除了驗 schema 還會偵測 year/merged 不同步、rate_alert 殘留、manual_review 待處理筆數
+- Python 3.8+（用到 `os.replace`、f-string、pathlib）

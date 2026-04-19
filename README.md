@@ -2,6 +2,14 @@
 
 每日更新的台股法人動向、融資融券分析 Dashboard。
 
+**需求**：Python 3.8+、Claude Code CLI（排程自動化用）、Chrome 瀏覽器。
+
+**建議初次設定**（一次即可）：
+```bash
+bash scripts/install-hooks.sh   # 裝 git pre-commit hook,commit 前自動跑 pipeline.py check
+python tests/test_pipeline.py   # 執行單元測試確認環境 OK
+```
+
 ## 檔案結構
 
 ```
@@ -117,9 +125,19 @@ claude
 
 ### 執行紀錄
 
-- 每次執行：`logs/daily-fetch-YYYY-MM-DD.log`
-- 失敗彙總：`logs/alerts.log`（定期檢視即可）
+- 每次執行：`logs/daily-fetch-YYYY-MM-DD-HHMMSS.log`（每次一檔、不再互相覆蓋）
+- 失敗彙總：`logs/alerts.log`（累積，定期檢視即可）
+- 自動保留最近 60 個 log 檔，舊檔會被 `DailyFetch.bat` 清除
 - `logs/` 已在 `.gitignore`，不進 git
+
+### OCR 讀不準時（manual review）
+
+`/daily-fetch` 遇到 OCR 信心 < 80% 的日期會自動加入 `data/manual_review.txt`，下次執行**跳過**這些日期避免卡住。
+
+人工處理後：
+1. 用 `pipeline.py append` 手動補該日
+2. 從 `data/manual_review.txt` 刪除該行
+3. 下次 `/daily-fetch` 就會再次嘗試（若網站仍有文章）
 
 ### 檢視排程狀態
 

@@ -150,19 +150,10 @@ tr.alert td:first-child{border-left:3px solid #ff6b6b}
 <!-- ===== TAB: 熱力圖 ===== -->
 <div id="tab-heatmap" class="content">
   <div class="chart-wrap">
-    <div class="chart-title">融資率月曆熱力圖 — 顏色越紅代表融資率越高（≥170% 為警戒）</div>
+    <div class="chart-title">融資率月曆 — 綠色正常，紅色警戒（≥170%）</div>
     <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa">
-        <span style="width:14px;height:14px;background:#1a3a1a;border-radius:2px;display:inline-block"></span>低 (≤140)
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa">
-        <span style="width:14px;height:14px;background:#3a6a1a;border-radius:2px;display:inline-block"></span>中低 (141-155)
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa">
-        <span style="width:14px;height:14px;background:#ffd700;border-radius:2px;display:inline-block"></span>中 (156-159)
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa">
-        <span style="width:14px;height:14px;background:#ff9900;border-radius:2px;display:inline-block"></span>偏高 (160-169)
+        <span style="width:14px;height:14px;background:#3a6a1a;border-radius:2px;display:inline-block"></span>正常 (&lt;170)
       </div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa">
         <span style="width:14px;height:14px;background:#ff3333;border-radius:2px;display:inline-block"></span>警戒 (≥170)
@@ -204,15 +195,7 @@ const isAlert = r => r.rate >= ALERT_THRESHOLD;
 
 // ─── Utility ───────────────────────────────────────────────
 function rateColor(r){
-  if(r>=170) return '#ff3333';
-  if(r>=160) return '#ff9900';
-  if(r>=156) return '#ffd700';
-  if(r>=141) return '#3a6a1a';
-  return '#1a3a1a';
-}
-function rateTextColor(r){
-  if(r>=170) return '#ff6b6b';
-  return '#51cf66';
+  return r >= ALERT_THRESHOLD ? '#ff3333' : '#3a6a1a';
 }
 function switchTab(id){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.remove('active'));

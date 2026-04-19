@@ -12,14 +12,14 @@ argument-hint: "(空=補齊) | YYYY-MM-DD(單日) | --dry-run | --dry-run YYYY-M
 先讀以下檔案建立專案知識（**不要略過**）：
 
 1. `CLAUDE.md` — 整體架構、資料流向、schema 規則
-2. `scraper_guide.md` — scantrader 網站結構、4 張圖的解讀規則、OCR 常見錯誤
+2. `scraper_guide.md` — **OCR 解讀規則與股名規範的唯一事實來源**（本檔不重複這些規則）
 3. `pipeline.py` — 確認 `validate_record`、`append`、`check`、`rebuild` 介面
 
 ---
 
 # Step 1：解析輸入與決定目標日期清單
 
-先解析 `$ARGUMENTS`，可能為：
+`$ARGUMENTS` 可能為：
 
 | 輸入 | 模式 | 行為 |
 |---|---|---|
@@ -42,15 +42,21 @@ python pipeline.py status
 
 ## 1b. 計算目標清單
 
-- **補齊模式**：`targets = [LATEST+1, LATEST+2, …, YESTERDAY]` 所有日期（含週末，後面會由「網站有無文章」過濾）
+- **補齊模式**：`targets = [LATEST+1, …, YESTERDAY]` 所有日期
 - **單日模式**：`targets = [指定日期]`
-  - 若指定日期 `> YESTERDAY`（例如使用者下錯日期）→ stop 並回報「不可抓取今日或未來資料（資料通常 23:00 後才發布）」
+  - 若指定日期 `> YESTERDAY` → stop 並回報「不可抓取今日或未來資料（資料通常 23:00 後才發布）」
   - 若指定日期已在 `python pipeline.py dates` 輸出中：
-    * **dry-run 模式** → 印警告「{日期} 已存在，正式跑會跳過；dry-run 繼續讓你驗證 OCR」，繼續 Step 3（用於 OCR 驗證）
+    * **dry-run 模式** → 印警告後繼續 Step 3（用於 OCR 驗證）
     * **正式模式** → 回報「已存在，跳過」並 exit 0
 
-## 1c. 若補齊模式且 `targets` 為空
-表示資料已最新到昨天，回報「已是最新（截至 {YESTERDAY}）」並 **exit 0**。
+## 1c. 排除 manual_review 清單
+
+讀 `data/manual_review.txt`（若不存在視為空）。格式：每行一個 `YYYY-MM-DD` 或註解（開頭 `#`）。
+- 這些日期已知 OCR 困難、需人工處理，**從 targets 中剔除**避免排程卡死迴圈
+- 印提示：「略過 N 筆人工待處理日期: [...]」
+
+## 1d. 若 `targets` 為空
+表示資料已最新到昨天（或剩下的都在 manual_review），回報「已是最新」並 **exit 0**。
 
 ---
 
@@ -60,14 +66,12 @@ python pipeline.py status
 ```bash
 git status --porcelain data/ dashboard_all.html
 ```
-- **正式模式**：若有未 commit 變動 → stop 並回報「working tree 不乾淨，拒絕執行」，避免把別人的改動混進本次 commit
-- **dry-run 模式**：印提醒「working tree 不乾淨，若是正式跑會被擋」後繼續（dry-run 不寫檔、不 commit，不會污染）
+- **正式模式**：若有未 commit 變動 → stop 並回報「working tree 不乾淨，拒絕執行」
+- **dry-run 模式**：印提醒後繼續
 
 ---
 
 # Step 3：一次取得 scantrader 文章清單
-
-（比「每個日期各找一次文章」快很多。）
 
 1. chrome-devtools MCP `new_page` 導航到 `https://scantrader.com/u/9769/articles`
 2. `wait_for` 等待 `a[href*="/article/"]` 出現
@@ -80,8 +84,8 @@ git status --porcelain data/ dashboard_all.html
      })
      .filter(Boolean);
    ```
-4. 若最舊的 `mmdd` 還晚於 `targets` 清單中最早日期 → 用 `drag` 手勢觸發 infinite scroll（JS `window.scrollTo` 對此站無效，必須模擬滑鼠）。每次 drag 後 `wait_for` 1.5 秒、重跑上面 script，最多 10 次。
-5. 取得全部文章清單，建 `{mmdd: href}` 對照表（注意：MM-DD 不含年份，若跨年要小心）。
+4. 若最舊的 `mmdd` 還晚於 `targets` 清單中最早日期 → 用 `drag` 手勢觸發 infinite scroll（JS `window.scrollTo` 對此站無效）。每次 drag 後 `wait_for` 1.5 秒、重跑 script，**最多 10 次**。
+5. 取得全部文章清單，建 `{mmdd: href}` 對照表（注意：跨年時 MM-DD 重複的小心）。
 
 ## 3a. 交叉比對
 
@@ -93,7 +97,7 @@ git status --porcelain data/ dashboard_all.html
 
 正常結束，回報：
 ```
-📭 無可抓取文章
+無可抓取文章
   目標範圍: {LATEST+1} ~ {YESTERDAY}
   網站上無對應文章的日期: {skipped_no_article}
   可能原因: 休市日 / 網站尚未發布
@@ -104,9 +108,14 @@ git status --porcelain data/ dashboard_all.html
 
 # Step 4~8：對 `to_fetch` 每個 `(date, url)` 逐一處理
 
-**重要**：每一筆都完整跑 Step 4–8 且成功（含 commit）後才處理下一筆。避免中途失敗留下混合狀態。
+**重要**：每一筆都完整跑 Step 4–8 且 commit 成功後才進下一筆。
 
-對每個 `(date, url)`：
+## Retry 策略（所有網路操作適用）
+
+`navigate_page`、`evaluate_script`、圖片 `new_page` 這三類操作若失敗：
+- 第 1 次失敗 → 等 2 秒重試
+- 第 2 次失敗 → 等 5 秒重試
+- 第 3 次仍失敗 → stop 該日並加入 `manual_review.txt`（見 Step 5 的 quarantine 規則）
 
 ## 4. 進入文章頁取 4 張圖片 URL
 
@@ -119,7 +128,7 @@ git status --porcelain data/ dashboard_all.html
    const last4 = imgs.slice(-4);
    ({ bull: last4[0], bear: last4[1], rate: last4[2], fusion: last4[3], total: imgs.length });
    ```
-4. 若 `total < 4` → 再 navigate 一次（此站偶爾要二次導航）；仍不足就 stop 並回報該日失敗
+4. 若 `total < 4` → 套用上述 retry 策略；3 次仍不足就 quarantine
 
 ## 5. 讀 4 張圖（OCR）
 
@@ -129,21 +138,20 @@ git status --porcelain data/ dashboard_all.html
 - 用你的 vision 能力解讀
 - `close_page`
 
-### 解讀規則
+**OCR 規則見 `scraper_guide.md`**（4 張圖的欄位對應、股名規範、OCR 常見錯誤對照表）。
 
-| 圖 | 擷取內容 | 欄位 |
-|---|---|---|
-| **bull**（借券賣出減少排行） | 中間欄「同步偏多標的」有色股名 5–10 個 | `bull` |
-| **bear**（借券賣出增加排行） | 中間欄「同步偏空標的」有色股名 5–10 個 | `bear` |
-| **rate**（融資多空走勢圖） | 底部表格**最右欄**（當日日期）的百分比整數 | `rate` |
-| **fusion**（融資增減排行） | 右半部「法人欄為正數（藍色）」的前 5 個股名 | `top5_margin_reduce_inst_buy` |
+### Quarantine 機制（OCR 信心不足時）
 
-### 股名規則
+任何欄位信心 < 80% 或有明顯異常（例如讀出空白、亂碼、日期對不上）時：
+1. **不要猜、不要寫 record**
+2. 把該日追加到 `data/manual_review.txt`：
+   ```
+   echo "{YYYY-MM-DD}  # OCR 不確定: {具體原因}" >> data/manual_review.txt
+   ```
+3. 跳過該日（**非 stop 整批**），繼續處理下一筆 `to_fetch`
+4. Step 9 的最終報告列出所有 quarantine 的日期
 
-- 逗號分隔、**不加空格、不加引號**
-- 保留 `*`（如 `可寧衛*`）、`-KY`（如 `中美-KY`）
-- OCR 易錯：`可等衛*` → `可寧衛*`、`緒創` → `緯創`
-- 任何欄位信心 < 80% → 該日改為 stop 並要求人工確認，**不要猜**
+這避免排程被同一個 OCR 卡住日永久困住。使用者人工驗證後從 `manual_review.txt` 刪除該行即可下次重抓。
 
 ## 6. 組 record
 
@@ -167,68 +175,69 @@ python pipeline.py check
 python pipeline.py rebuild
 rm tmp_record.json
 ```
-任一步失敗 → rollback 並停止整批處理（已成功 commit 的前幾天保留）：
+任一步失敗 → rollback 並停止整批：
 ```bash
 git checkout -- data/ dashboard_all.html
 rm -f tmp_record.json
 ```
 
-**dry-run 模式**：略過此步，把 record 內容印到終端即可。
+**dry-run 模式**：略過此步，把 record 印到終端。
 
 ## 8. Commit + push（非 dry-run 才跑）
 
 ```bash
 git add data/ dashboard_all.html
-git commit -m "data: YYYY-MM-DD"
+git commit -m "data: YYYY-MM-DD (rate=NNN)"
 git push
 ```
 
-注意：
-- commit message 只有 `data: 日期`
+Commit message 規則：
+- 格式：`data: 日期 (rate=N)`；若 rate ≥ 170 加警戒標記：`data: 日期 (rate=N, alert)`
 - 不加 `Co-Authored-By`
 - **絕對不要** `--force`
-- push 失敗（網路 / 衝突）→ stop 並回報，**不要** reset 或 force
+- push 失敗 → stop 並回報（**不要** reset 或 force）
 
 ---
 
 # Step 9：最終報告
 
-**成功時**（補齊模式可能處理多天）：
+**成功時**：
 ```
-✅ 補齊完成
+補齊完成
   處理範圍: {LATEST+1} ~ {YESTERDAY}
   新增 {N} 天:
-    - 2026-04-18  rate=172%  (commit abc1234)
-    - 2026-04-21  rate=175% ⚠️ (commit def5678)
-  跳過（網站無文章）: [...]
+    - 2026-04-18  rate=172  (commit abc1234)
+    - 2026-04-21  rate=175 alert  (commit def5678)
+  跳過 (網站無文章): [...]
+  Quarantine (加入 manual_review): [...]
   目前總筆數: {N}
 ```
 
 **失敗時**：
 ```
-❌ 補齊中斷
+補齊中斷
   已成功: [2026-04-18]
   失敗於: 2026-04-21
   卡在步驟: {N}
-  錯誤: {具體訊息}
+  錯誤: {訊息}
   已恢復: {git status 是否乾淨}
   建議: {下一步}
 ```
 
 **無事可做時**：
 ```
-📭 已是最新 (截至 {YESTERDAY})
+已是最新 (截至 {YESTERDAY})
 ```
 
 ---
 
 # 錯誤處理原則
 
-1. **寧缺勿錯**：OCR 信心不足 → stop 並要求人工，不要猜
-2. **檔案一致性**：append 後 check 失敗 → **必須 rollback**
+1. **OCR 信心不足 → quarantine**，不 stop 整批
+2. **檔案一致性**：append 後 check 失敗 → 必須 rollback
 3. **禁用**：`--force` push、`git reset --hard`、`rm -rf data/`
 4. **網站問題 vs 資料問題分開**：
-   - 找不到文章 / 圖片載入失敗 → 網站問題，exit 0（排程會明日再試）
-   - OCR 讀錯、schema 驗證失敗 → 資料問題，exit 1（需人工介入）
-5. **不自己維護休市日曆**；以「網站上是否有對應 MM-DD 文章」為唯一事實
-6. **批次中任一天失敗**：已成功 commit 的保留，失敗的那天 rollback，**不繼續**處理後續日期
+   - 找不到文章 / 網路失敗 → 網站問題，exit 0（排程明日再試）
+   - schema 驗證失敗 / check 失敗 → 資料問題，exit 1
+5. **不自己維護休市日曆**；以網站有無文章為唯一事實
+6. **批次中任一天失敗**：已成功 commit 的保留，失敗的那天 rollback，不繼續後續

@@ -11,30 +11,25 @@
                             --bull "台積電,聯發科" \\
                             --bear "長榮,陽明" \\
                             --top5 "台積電,富邦金,玉山金,中信金,國泰金"
-  python pipeline.py rebuild                     更新 dashboard_all.html header（資料已改 fetch）
+  python pipeline.py rebuild                     更新 dashboard_all.html header
   python pipeline.py check                       驗證資料完整性
   python pipeline.py status                      顯示目前資料概況
   python pipeline.py dates                       列出所有已有日期
 
-資料格式（json_file 內容或 CLI 參數）：
-  {
-    "date": "2026-04-18",
-    "bull": "台積電,聯發科,鴻海",
-    "bear": "長榮,陽明",
-    "rate": 172,
-    "top5_margin_reduce_inst_buy": "台積電,富邦金,玉山金,中信金,國泰金"
-  }
-
-  rate_alert 已移除，dashboard 直接由 `rate >= 170` 推導。
+rate_alert 已移除,dashboard 直接由 `rate >= 170` 推導。
+需求:Python 3.8+。
 """
 
 import sys
 import json
 import re
 import argparse
+import tempfile
+import os
+from datetime import datetime
 from pathlib import Path
 
-# Windows 主控台（cp950）無法顯示 emoji，強制改 utf-8
+# Windows 主控台(cp950)無法顯示 emoji,強制改 utf-8
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -52,6 +47,10 @@ REQUIRED_FIELDS = ("date", "bull", "bear", "rate", "top5_margin_reduce_inst_buy"
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+class PipelineError(RuntimeError):
+    """所有指令失敗都 raise 這個;__main__ 會 catch 並 exit 1。"""
+
+
 def year_file(year: str) -> Path:
     return DATA / f"stock_data_{year}.json"
 
@@ -60,10 +59,29 @@ def load_json(path: Path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _atomic_write_text(path: Path, content: str) -> None:
+    """寫入暫存檔再 rename,降低中斷時破壞既有檔的風險。"""
+    path = Path(path)
+    tmp = Path(tempfile.mkstemp(
+        prefix=path.name + ".",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )[1])
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def save_json(path: Path, obj, indent: int = 2):
-    Path(path).write_text(
+    _atomic_write_text(
+        Path(path),
         json.dumps(obj, ensure_ascii=False, indent=indent),
-        encoding="utf-8",
     )
 
 
@@ -76,6 +94,10 @@ def validate_record(r: dict) -> None:
         raise ValueError(f"缺少欄位: {missing}")
     if not DATE_RE.match(r["date"]):
         raise ValueError(f"日期格式錯誤 (需 YYYY-MM-DD): {r['date']!r}")
+    try:
+        datetime.strptime(r["date"], "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"日期不是合法日期 (月份/日數越界): {r['date']!r}")
     if not isinstance(r["rate"], int) or not (100 <= r["rate"] <= 250):
         raise ValueError(f"rate 需為 100–250 的整數: {r['rate']!r}")
     for k in ("bull", "bear", "top5_margin_reduce_inst_buy"):
@@ -83,44 +105,61 @@ def validate_record(r: dict) -> None:
             raise ValueError(f"{k} 需為字串: {r[k]!r}")
     if "rate_alert" in r:
         raise ValueError(
-            "rate_alert 欄位已移除（由 dashboard 依 rate>=170 推導）；請從 record 拿掉此欄位。"
+            "rate_alert 欄位已移除(由 dashboard 依 rate>=170 推導);請從 record 拿掉此欄位。"
         )
 
 
 # ── 新增一筆資料 ─────────────────────────────────────────────
 
 def append_record(record: dict):
+    """先在記憶體組好兩個檔的最終內容,再依序 atomic write。
+
+    若第一個 save_json 已成功、第二個失敗(磁碟問題),下次跑 `pipeline.py check`
+    會偵測到 year/merged 不同步並明確報錯。
+    """
     validate_record(record)
     d    = record["date"]
     year = d[:4]
 
-    # 1. 寫入對應年份檔
+    # Step 1:準備 year 檔的新內容
     yfile = year_file(year)
-    if not yfile.exists():
-        ydata = {"year": int(year), "trading_days": 0, "data": []}
-    else:
+    if yfile.exists():
         ydata = load_json(yfile)
-
-    if d in {r["date"] for r in ydata["data"]}:
-        print(f"⚠️  {d} 已存在於 {yfile.name},略過")
     else:
+        ydata = {"year": int(year), "trading_days": 0, "data": []}
+    year_existing = {r["date"] for r in ydata["data"]}
+
+    # Step 2:準備 merged 的新內容
+    merged = load_json(MERGED) if MERGED.exists() else []
+    merged_existing = {r["date"] for r in merged}
+
+    already_year   = d in year_existing
+    already_merged = d in merged_existing
+
+    if already_year and already_merged:
+        print(f"[skip] {d} 已存在於兩個檔案")
+        return
+
+    if not already_year:
         ydata["data"].append(record)
         ydata["data"].sort(key=lambda x: x["date"])
         ydata["trading_days"] = len(ydata["data"])
-        save_json(yfile, ydata)
-        print(f"✅  寫入 {yfile.name}（共 {ydata['trading_days']} 筆）")
 
-    # 2. 寫入 all_data_merged.json
-    merged = load_json(MERGED)
-    if d in {r["date"] for r in merged}:
-        print(f"⚠️  {d} 已存在於 all_data_merged.json,略過")
-    else:
+    if not already_merged:
         merged.append(record)
         merged.sort(key=lambda x: x["date"])
-        save_json(MERGED, merged)
-        print(f"✅  寫入 all_data_merged.json（共 {len(merged)} 筆）")
 
-    print("\n📊  完成!執行 'python pipeline.py rebuild' 更新 Dashboard header")
+    # Step 3:兩個都寫入。先寫 merged(dashboard 讀這份),
+    # 再寫 year(純備份);若 year 寫入失敗,下次 check 會明確報不同步,
+    # 不會讓 dashboard 顯示異常。
+    if not already_merged:
+        save_json(MERGED, merged)
+        print(f"[ok] 寫入 all_data_merged.json (共 {len(merged)} 筆)")
+    if not already_year:
+        save_json(yfile, ydata)
+        print(f"[ok] 寫入 {yfile.name} (共 {ydata['trading_days']} 筆)")
+
+    print("\n完成。建議接著跑 'python pipeline.py check' 驗證後再 rebuild。")
 
 
 # ── 重建 Dashboard ───────────────────────────────────────────
@@ -128,39 +167,39 @@ def append_record(record: dict):
 def rebuild_dashboard():
     """更新 dashboard_all.html header 的日期範圍與筆數。
 
-    資料已改由 fetch('./data/*.json') 動態載入,rebuild 只負責同步 header。
+    資料由 fetch('./data/*.json') 動態載入,rebuild 只同步 header fallback。
     """
     if not DASH.exists():
-        print("❌  找不到 dashboard_all.html")
-        sys.exit(1)
+        raise PipelineError("找不到 dashboard_all.html")
 
     merged = load_json(MERGED)
-    dates  = sorted(r["date"] for r in merged)
+    if not merged:
+        raise PipelineError("all_data_merged.json 為空,無法 rebuild header")
+
+    dates = sorted(r["date"] for r in merged)
     content = DASH.read_text(encoding="utf-8")
 
-    # Header 是 <div class="sub">...</div>,初始顯示「載入中…」,
-    # JS fetch 成功後會被 updateHeader() 覆蓋為最新日期範圍。
-    # rebuild 把這裡的 fallback 文字同步為 build 時的資料範圍,
-    # 讓 JS 還沒載入完、或 fetch 失敗時也能看到合理文字。
     sub_re = re.compile(r'(<div class="sub">)[^<]*(</div>)')
     if not sub_re.search(content):
-        raise RuntimeError(
+        raise PipelineError(
             'dashboard_all.html 找不到 header 標記 <div class="sub">...</div>'
         )
     new_sub = f"{dates[0]} ～ {dates[-1]} &nbsp;·&nbsp; 共 {len(merged):,} 個交易日"
     content = sub_re.sub(rf'\g<1>{new_sub}\g<2>', content, count=1)
 
-    DASH.write_text(content, encoding="utf-8")
-    print(f"✅  Dashboard header fallback 已更新（{len(merged)} 筆,{dates[0]} ～ {dates[-1]}）")
+    _atomic_write_text(DASH, content)
+    print(f"[ok] Dashboard header 已更新 ({len(merged)} 筆, {dates[0]} ~ {dates[-1]})")
 
 
 # ── 檢查 ────────────────────────────────────────────────────
 
 def check():
-    """驗證資料完整性;失敗時以 exit code 1 結束。"""
+    """驗證資料完整性;失敗時 raise PipelineError。"""
     errors = []
     warnings = []
 
+    if not MERGED.exists():
+        raise PipelineError(f"找不到 {MERGED}")
     merged = load_json(MERGED)
 
     # 1. schema
@@ -182,7 +221,7 @@ def check():
     for yfile in sorted(DATA.glob("stock_data_*.json")):
         y = load_json(yfile)
         if not (isinstance(y, dict) and "data" in y):
-            errors.append(f"[{yfile.name}] 結構異常（缺 data 欄位）")
+            errors.append(f"[{yfile.name}] 結構異常(缺 data 欄位)")
             continue
         year_total += len(y["data"])
         year_dates.update(r["date"] for r in y["data"])
@@ -195,56 +234,86 @@ def check():
     if extra_in_year:
         errors.append(f"[sync] year 檔有但 merged 缺: {sorted(extra_in_year)[:10]}")
 
-    # 4. TWII 缺漏（warning）
-    twii = load_json(TWII)
-    missing_twii = [d for d in dates if d not in twii]
+    # 4. TWII 缺漏(warning)
+    if TWII.exists():
+        twii = load_json(TWII)
+        missing_twii = [d for d in dates if d not in twii]
+    else:
+        warnings.append("[twii] twii_all.json 不存在")
+        missing_twii = []
     if missing_twii:
-        warnings.append(f"[twii] 缺漏 {len(missing_twii)} 天: {missing_twii[:10]}{' …' if len(missing_twii)>10 else ''}")
+        warnings.append(f"[twii] 缺漏 {len(missing_twii)} 天: {missing_twii[:10]}{' ...' if len(missing_twii)>10 else ''}")
 
-    # 5. rate_alert 殘留（舊欄位防呆）
+    # 5. rate_alert 殘留(舊欄位防呆)
     stale = [r["date"] for r in merged if "rate_alert" in r]
     if stale:
         errors.append(f"[legacy] 仍有 rate_alert 欄位殘留: {stale[:5]}")
 
+    # 6. manual_review 清單提醒
+    review_file = DATA / "manual_review.txt"
+    pending_review = []
+    if review_file.exists():
+        pending_review = [
+            line.strip() for line in review_file.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+        if pending_review:
+            warnings.append(f"[review] 待人工處理 {len(pending_review)} 筆: {pending_review[:5]}")
+
     alerts = sum(1 for r in merged if r["rate"] >= RATE_ALERT_THRESHOLD)
-    print(f"📊  Check 結果")
+    print(f"Check 結果")
     print(f"  筆數       : {len(merged)}")
-    print(f"  警戒日     : {alerts} (rate ≥ {RATE_ALERT_THRESHOLD}%)")
+    print(f"  警戒日     : {alerts} (rate >= {RATE_ALERT_THRESHOLD}%)")
     print(f"  TWII 缺漏  : {len(missing_twii)} 天")
+    print(f"  人工待處理 : {len(pending_review)} 筆")
 
     if warnings:
-        print("\n⚠️  警告:")
+        print("\n[WARN]")
         for w in warnings:
             print(f"  - {w}")
     if errors:
-        print("\n❌  錯誤:")
+        print("\n[ERROR]")
         for e in errors:
             print(f"  - {e}")
-        sys.exit(1)
-    print("\n✅  檢查通過")
+        raise PipelineError(f"{len(errors)} 項錯誤")
+    print("\n檢查通過")
 
 
 # ── 查詢工具 ────────────────────────────────────────────────
 
 def list_dates():
+    if not MERGED.exists():
+        print("尚無 merged 檔")
+        return
     merged = load_json(MERGED)
     dates  = sorted(r["date"] for r in merged)
-    print(f"共 {len(dates)} 個交易日,範圍：{dates[0]} ～ {dates[-1]}")
+    if not dates:
+        print("尚無資料")
+        return
+    print(f"共 {len(dates)} 個交易日, 範圍: {dates[0]} ~ {dates[-1]}")
 
 
 def show_status():
+    if not MERGED.exists():
+        print("尚無 merged 檔")
+        return
     merged = load_json(MERGED)
-    twii   = load_json(TWII)
-    dates  = sorted(r["date"] for r in merged)
-    last   = merged[-1] if merged else {}
+    twii = load_json(TWII) if TWII.exists() else {}
+    if not merged:
+        print("資料概況")
+        print("  法人資料  : 0 筆 (尚無資料)")
+        print(f"  TWII 資料 : {len(twii)} 筆")
+        return
+    dates = sorted(r["date"] for r in merged)
+    last  = merged[-1]
     missing_twii = [d for d in dates if d not in twii]
     alerts = [r for r in merged if r["rate"] >= RATE_ALERT_THRESHOLD]
-    print("📊  資料概況")
-    print(f"  法人資料  ：{len(merged)} 筆  ({dates[0]} ～ {dates[-1]})")
-    print(f"  TWII 資料 ：{len(twii)} 筆")
-    print(f"  TWII 缺漏 ：{len(missing_twii)} 天")
-    print(f"  警戒日    ：{len(alerts)} 天 (融資率 ≥{RATE_ALERT_THRESHOLD}%)")
-    print(f"  最新一筆  ：{last.get('date')} — 融資率 {last.get('rate')}%")
+    print("資料概況")
+    print(f"  法人資料  : {len(merged)} 筆  ({dates[0]} ~ {dates[-1]})")
+    print(f"  TWII 資料 : {len(twii)} 筆")
+    print(f"  TWII 缺漏 : {len(missing_twii)} 天")
+    print(f"  警戒日    : {len(alerts)} 天 (融資率 >={RATE_ALERT_THRESHOLD}%)")
+    print(f"  最新一筆  : {last['date']} - 融資率 {last['rate']}%")
 
 
 # ── CLI ──────────────────────────────────────────────────────
@@ -272,13 +341,15 @@ def _parse_append(argv):
     }
 
 
-if __name__ == "__main__":
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
+def main(argv=None):
+    argv = argv if argv is not None else sys.argv[1:]
+    cmd = argv[0] if argv else "status"
+    args = argv[1:]
 
     if cmd == "append":
-        if len(sys.argv) < 3:
-            print(__doc__); sys.exit(1)
-        record = _parse_append(sys.argv[2:])
+        if not args:
+            print(__doc__); return 1
+        record = _parse_append(args)
         append_record(record)
     elif cmd == "rebuild":
         rebuild_dashboard()
@@ -290,3 +361,13 @@ if __name__ == "__main__":
         list_dates()
     else:
         print(__doc__)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except PipelineError as e:
+        print(f"\n[FAIL] {e}", file=sys.stderr)
+        sys.exit(1)
