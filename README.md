@@ -6,17 +6,18 @@
 
 ```
 .
-├── pipeline.py              # 每日資料更新 pipeline
-├── dashboard_all.html       # 主要 Dashboard (獨立 HTML,可離線檢視)
-├── scraper_guide.md         # 資料抓取流程說明
-├── PROGRESS.md              # 進度記錄
-├── 啟動Dashboard.bat         # Windows 一鍵開啟 Dashboard
+├── pipeline.py                    # 資料 pipeline (append/rebuild/check/status/dates)
+├── dashboard_all.html             # Dashboard (fetch JSON,需 HTTP server)
+├── scraper_guide.md               # 4 張圖解讀規則 + OCR 常見錯誤
+├── 啟動Dashboard.bat              # 啟動 HTTP server + 開 Chrome
+├── DailyFetch.bat                 # 排程器呼叫的包裝腳本
+├── 安裝排程.bat / 卸載排程.bat     # Windows 工作排程器註冊 / 解除
+├── .claude/
+│   └── commands/daily-fetch.md    # /daily-fetch 斜線指令流程
 └── data/
-    ├── all_data_merged.json       # 所有年份合併資料
-    ├── stock_data_YYYY.json       # 各年度資料
-    ├── stock_data_2026Q1.csv      # 季度 CSV
-    ├── twii_all.json              # 加權指數資料
-    └── 台股借券融資關鍵數據報告_2026Q1.xlsx
+    ├── all_data_merged.json       # 全歷史合併 (dashboard 主來源)
+    ├── stock_data_YYYY.json       # 依年份分檔
+    └── twii_all.json              # 加權指數收盤價
 ```
 
 ## 使用方式

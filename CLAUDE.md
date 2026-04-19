@@ -31,7 +31,8 @@ python pipeline.py dates
 
 Windows 一鍵腳本：
 - `啟動Dashboard.bat` — 啟動 `python -m http.server 8899` 並用 Chrome 開啟 dashboard
-- `CommitAndPush.bat` — `git add -A && commit && push`（commit message 為寫死字串，若要重用須先改訊息）
+- `DailyFetch.bat` — 被排程器呼叫，執行 `claude -p "/daily-fetch" --permission-mode bypassPermissions`
+- `安裝排程.bat` / `卸載排程.bat` — 註冊 / 解除 Windows 工作排程（主 23:30 + 備援 07:00）
 
 No test suite, no linter, no build step — pure data pipeline + static HTML。`check` 指令扮演 smoke test 角色。
 
@@ -86,7 +87,7 @@ pipeline.py rebuild 只更新 HTML header 的 fallback 文字
 - `data/stock_data_YYYY.json` — 依年份分檔，結構為 `{"year": 2026, "trading_days": N, "data": [...]}`。
 - `data/twii_all.json` — 加權指數收盤價（日期 → 數值 dict）。
 - `scraper_guide.md` — scantrader.com 的資料擷取流程（手動操作瀏覽器 + OCR 圖片），不是自動化腳本。
-- `PROGRESS.md` — 歷史回補進度紀錄（2024 / 2023 回補中，2022 / 2021 待建），時間戳記為 2026-04-12。
+- `.claude/commands/daily-fetch.md` — `/daily-fetch` 斜線指令完整流程（找文章、OCR、組 record、寫入、commit、push）
 
 ## Working conventions
 

@@ -1,83 +1,45 @@
 # 台股借券融資資料擷取指南
 
+本檔記錄 scantrader.com 的網站結構與 4 張圖的解讀規則，供 `/daily-fetch` 自動化流程以及日後人工核對使用。自動化已由 `.claude/commands/daily-fetch.md` 實作，一般情況不需手動操作，此檔僅作為**資料規則與 OCR 注意事項的單一事實來源**。
+
+---
+
 ## 網站結構
-- 文章列表：https://scantrader.com/u/9769/articles
+
+- 文章列表：<https://scantrader.com/u/9769/articles>
 - 目標文章標題格式：`MM-DD 台股-借券賣出-融資關鍵資料`
-- 文章內含 6 張 GCS 圖片，**最後 4 張**依序為：
+- 文章內含 6–8 張 GCS 圖片，**最後 4 張 PNG** 依序為：
   1. `bull` — 借券賣出減少排行（偏多）
   2. `bear` — 借券賣出增加排行（偏空）
   3. `rate` — 融資多空走勢圖
   4. `fusion` — 融資增減排行
+- GCS URL 格式：`https://storage.googleapis.com/quants-images-prod/scantrader/upload/{id}.png`
+- 資料通常於**當日晚間 23:00 左右**發布，排程建議 23:30 主 + 07:00 備援
 
 ---
 
-## Step 1：從文章列表頁取得所有文章 URL
+## 4 張圖解讀規則
 
-需在 https://scantrader.com/u/9769/articles 頁面，
-**用真實滑鼠捲動事件**（JS 的 window.scrollTo 無效）觸發 infinite scroll。
+### 1. bull（借券賣出減少排行）
+- 版面：左（外資買超前 20 名）｜**中（同步偏多標的）**｜右（借券減少前 20 名）
+- ✅ **只讀中間欄**有色文字的股名（約 5–10 個）→ `bull` 欄位
 
-捲動到底後，在 Console 執行：
-```javascript
-const titleEls = Array.from(document.querySelectorAll('*')).filter(el =>
-  el.children.length < 3 && el.innerText?.trim().match(/^\d{2}-\d{2}台股-借券賣出/)
-);
-const results = [];
-titleEls.forEach(el => {
-  const link = el.closest('[href]') || el.parentElement?.closest('[href]') 
-    || el.closest('li,article,[class*="item"]')?.querySelector('a[href*="/article/"]');
-  if (link) {
-    const m = el.innerText.trim().match(/^(\d{2}-\d{2})/);
-    if (m) results.push({date: m[1], url: link.href});
-  }
-});
-const unique = [...new Map(results.map(r=>[r.date,r])).values()]
-  .sort((a,b)=>a.date.localeCompare(b.date));
-window._allBorrowArticles = unique;
-console.log(`Total: ${unique.length}`, unique.map(r=>r.date).join(', '));
-```
+### 2. bear（借券賣出增加排行）
+- 版面：左（外資賣超前 20 名）｜**中（同步偏空標的）**｜右（借券增加前 20 名）
+- ✅ **只讀中間欄**有色文字的股名 → `bear` 欄位
 
----
+### 3. rate（融資多空走勢圖）
+- 底部表格有日期與百分比一排
+- ✅ 讀**最右欄**（當日日期）的百分比整數 → `rate` 欄位
 
-## Step 2：進入文章頁取得 4 張圖片 URL
-
-在文章頁 Console 執行：
-```javascript
-const imgs = Array.from(document.querySelectorAll('img[src*="storage.googleapis.com"]')).map(i=>i.src);
-const [bull, bear, rate, fusion] = imgs.slice(-4);
-JSON.stringify({bull, bear, rate, fusion});
-```
-
----
-
-## Step 3：讀取各圖片資料
-
-### 方法：直接在瀏覽器開啟圖片 URL，再截圖/縮放閱讀
-
-#### 圖 1 — bull（借券賣出減少排行）
-- 圖片標題：「借券賣出減少排行」
-- 版面：左（外資買超前20名）｜**中（同步偏多標的）**｜右（借券減少前20名）
-- ✅ **只讀取中間欄**（有色文字，約 5-10 個股名）
-- Zoom region: `[350, 100, 650, 850]`
-
-#### 圖 2 — bear（借券賣出增加排行）
-- 圖片標題：「借券賣出增加排行」
-- 版面：左（外資賣超前20名）｜**中（同步偏空標的）**｜右（借券增加前20名）
-- ✅ **只讀取中間欄**
-- Zoom region: `[350, 100, 650, 850]`
-
-#### 圖 3 — rate（融資多空走勢圖）
-- 底部有一排日期與百分比表格
-- ✅ 讀最後一欄（文章日期）的百分比數字，取整數
-- Zoom region: `[0, 700, 940, 945]`
-
-#### 圖 4 — fusion（融資增減排行）
+### 4. fusion（融資增減排行）
 - 版面：左（融資增加）｜右（融資減少）
-- ✅ **只看右半部**，找法人欄為**正數（藍色）**的前5支股票
-- Zoom region: `[470, 100, 940, 600]`
+- ✅ **只看右半部**，按融資減少量排序，找**法人欄為正數（藍色）的前 5 支**股名 → `top5_margin_reduce_inst_buy` 欄位
+- 若法人欄為零或負值（紅色）則跳過該列往下找
 
 ---
 
-## Step 4：資料格式
+## Record 格式
 
 ```json
 {
@@ -89,40 +51,25 @@ JSON.stringify({bull, bear, rate, fusion});
 }
 ```
 
-- 股名以逗號分隔，不加空格，不加引號
+- 股名以逗號分隔，**不加空格、不加引號**
 - 保留特殊後綴：`*`（如 `可寧衛*`）、`-KY`（如 `中美-KY`）
 - 警戒（`rate >= 170`）由 Dashboard 即時推導，**不需要也不可寫 `rate_alert` 欄位**（寫了會被 `pipeline.py append` 的 schema 檢查擋下）
 
 ---
 
-## 專案目錄結構
+## OCR 常見錯誤對照
 
-```
-法人日資料/
-├── dashboard.html                    ← 主 Dashboard（瀏覽器開啟）
-├── 啟動Dashboard.bat                 ← 一鍵啟動 HTTP Server + 開啟 Dashboard
-├── pipeline.py                       ← 資料工具（append 記錄、存圖片）
-├── scraper_guide.md                  ← 本指南
-├── images/                           ← 原始圖片（自動建立）
-│   └── 2026-MM-DD/
-│       ├── bull.png
-│       ├── bear.png
-│       ├── rate.png
-│       └── fusion.png
-└── data/
-    ├── stock_data_2026Q1.json        ← 主資料（61 個交易日）
-    ├── stock_data_2026Q1.csv         ← 同上（CSV 格式）
-    ├── twii_2026Q1.json              ← 加權指數收盤價
-    ├── 台股借券融資關鍵數據報告_2026Q1.xlsx  ← Excel 報告
-    ├── pending_articles.json         ← 待抓取文章清單（備用）
-    └── batches/                      ← 原始批次匯入資料（歷史備份）
-        ├── batch_A.json
-        └── ...
-```
+| 錯誤 | 正確 |
+|---|---|
+| `可等衛*` | `可寧衛*` |
+| `緒創` | `緯創` |
+
+信心 < 80% 的欄位應由人工確認，不要猜。
 
 ---
 
 ## 注意事項
-- 12月文章（12-xt）屬於2025年，非2026年，注意年份邊界
-- 部分 OCR 常見錯誤：`可等衛*` → `可寧衛*`、`緒創` 可能是 `緯創`
-- 每篇文章抓取約需 10-15 秒（4張圖各需一次導覽）
+
+- 12 月文章（`12-xx`）屬於該年度，跨年時注意年份邊界（例：2025-12-30 的文章是 2025 年而非 2026）
+- 文章列表用 infinite scroll，**JS `window.scrollTo` 無效**，必須用滑鼠真實 drag 才會觸發載入
+- Tab 導航有時需要 navigate 兩次才確實切換

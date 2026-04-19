@@ -27,6 +27,10 @@ tmp_record.json
 # 排程 log
 logs/
 
+# 手動匯出 (非 pipeline 產出)
+data/*.csv
+data/*.xlsx
+
 # 環境變數 / 機密
 .env
 .env.local
