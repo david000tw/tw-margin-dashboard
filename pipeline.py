@@ -26,6 +26,7 @@ import re
 import argparse
 import tempfile
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -60,21 +61,42 @@ def load_json(path: Path):
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
-    """寫入暫存檔再 rename,降低中斷時破壞既有檔的風險。"""
+    """寫入暫存檔再 rename,降低中斷時破壞既有檔的風險。
+
+    Windows 上防毒即時掃描(Defender 等)會在新檔建立後立刻開啟讀取,
+    導致 os.replace 與 tmp.unlink 短暫 WinError 32。遇到就稍後重試。
+    """
     path = Path(path)
-    tmp = Path(tempfile.mkstemp(
+    tmp_fd, tmp_name = tempfile.mkstemp(
         prefix=path.name + ".",
         suffix=".tmp",
         dir=str(path.parent),
-    )[1])
+    )
+    os.close(tmp_fd)
+    tmp = Path(tmp_name)
     try:
         tmp.write_text(content, encoding="utf-8")
-        os.replace(tmp, path)
+        last_err = None
+        for delay in (0, 0.2, 0.5, 1.0, 2.0):
+            if delay:
+                time.sleep(delay)
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError as e:
+                last_err = e
+        raise last_err
     except Exception:
-        try:
-            tmp.unlink()
-        except FileNotFoundError:
-            pass
+        for delay in (0, 0.2, 0.5, 1.0, 2.0):
+            if delay:
+                time.sleep(delay)
+            try:
+                tmp.unlink()
+                break
+            except FileNotFoundError:
+                break
+            except PermissionError:
+                continue
         raise
 
 
