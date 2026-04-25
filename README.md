@@ -19,9 +19,15 @@ python tests/test_pipeline.py   # 執行單元測試確認環境 OK
 ├── scraper_guide.md               # 4 張圖解讀規則 + OCR 常見錯誤
 ├── 啟動Dashboard.bat              # 啟動 HTTP server + 開 Chrome
 ├── DailyFetch.bat                 # 排程器呼叫的包裝腳本
+├── 跑AI分析.bat                    # 觸發多 agent 分析 (走 Claude Code 訂閱)
 ├── 安裝排程.bat / 卸載排程.bat     # Windows 工作排程器註冊 / 解除
 ├── .claude/
 │   └── commands/daily-fetch.md    # /daily-fetch 斜線指令流程
+├── agents/                        # CrewAI 多 agent 分析器 (見「AI 分析」章)
+├── scripts/
+│   ├── fetch_prices.py            # 抓個股收盤 (yfinance)
+│   ├── fetch_twii.py              # 補加權指數 ^TWII 缺漏
+│   └── install-hooks.sh           # 安裝 git pre-commit hook
 └── data/
     ├── all_data_merged.json       # 全歷史合併 (dashboard 主來源)
     ├── stock_data_YYYY.json       # 依年份分檔
@@ -161,3 +167,30 @@ schtasks /run /tn "FaRenRiZiLiao_Daily_Primary"
 2. `logs/alerts.log` 看歷次失敗時間點
 3. 手動跑一次 `/daily-fetch --dry-run` 對照（排除網站 / OCR 問題）
 4. 若是權限提示卡住 → 確認 `.bat` 有 `--permission-mode bypassPermissions`
+
+## 補加權指數 (^TWII)
+
+`pipeline.py check` 會 WARN 列出 merged 有但 `twii_all.json` 沒有的日期。補法：
+
+```bash
+python scripts/fetch_twii.py
+```
+
+從 `yfinance` 抓 `^TWII` 收盤價，只填缺的日子。週末 / 休市日 yfinance 不會回，會被自動跳過。
+
+## AI 分析（多 agent，走 Claude Code 訂閱）
+
+`agents/` 用 CrewAI 編排四個 agent（融資率警戒分析、法人動向、當日快照、首席整合），透過 `claude -p` subprocess 呼叫，**不用 API key、走你的 Claude Code 訂閱**。
+
+```bash
+# Windows：雙擊
+跑AI分析.bat            # 預設分析近 30 天
+跑AI分析.bat 60         # 改抓近 60 天
+
+# 手動
+python agents/analyze.py --days 30
+```
+
+報告寫在 `agents/latest_report.md`（已在 `.gitignore`，不進 git）。
+
+需求：`pip install crewai`（會自動帶入相依套件）。
