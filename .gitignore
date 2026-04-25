@@ -40,3 +40,10 @@ config.secret.*
 # 系統
 Thumbs.db
 desktop.ini
+
+# Playwright / Chrome DevTools MCP runtime snapshots
+.playwright-mcp/
+
+# AI 分析產出
+agents/latest_report.md
+agents/__pycache__/
