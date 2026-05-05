@@ -138,7 +138,13 @@ git status --porcelain data/ dashboard_all.html
 - 用你的 vision 能力解讀
 - `close_page`
 
-**OCR 規則見 `scraper_guide.md`**（4 張圖的欄位對應、股名規範、OCR 常見錯誤對照表）。
+**OCR 規則見 `scraper_guide.md`**。重點摘要（必讀，避免再產生錯字 record）：
+
+> **每一列都同時看到「代號 + 股名」並列時，只記錄代號**（4-6 位數字，可能含 `*` 或 `-KY` 後綴）。代號比中文股名穩定（OCR 不會把 `2330` 讀錯成別的數字，但容易把「聯詠」讀成「聯泳」）。
+>
+> 只有罕見情況（興櫃股無代號或代號被遮擋）才退而取股名。
+>
+> dashboard 會透過 `data/symbol_index.json` 反查代號對應的名稱，使用者看到的還是「2330 台積電」。
 
 ### Quarantine 機制（OCR 信心不足時）
 
@@ -155,9 +161,11 @@ git status --porcelain data/ dashboard_all.html
 
 ## 6. 組 record
 
-### 6a. 套用 OCR 錯字對照（必做）
+### 6a. 套用 OCR 錯字對照（fallback 用）
 
-讀 `data/ocr_corrections.json` 的 `ocr_to_correct` dict。對 OCR 解出的 bull / bear / top5 三個字串，**逐個 symbol 做 lookup-and-replace**：
+如果 Step 5 你**真的拿到代號**，可跳過這段（代號 OCR 不會字形混淆）。
+
+如果某列 OCR 沒抓到代號、只抓到股名（罕見，例如興櫃或圖被遮擋），讀 `data/ocr_corrections.json` 的 `ocr_to_correct` dict 對該股名做 lookup-and-replace：
 
 ```python
 import json
@@ -172,7 +180,7 @@ bear = apply_fixes(bear_raw)
 top5 = apply_fixes(top5_raw)
 ```
 
-**為什麼必做**：歷史上發現 ~25 種高頻 OCR 錯字（如「聯泳→聯詠」「光豐金→永豐金」），不修的話 record 寫進去就是錯字、後續 dashboard 顯示「(待補)」、個股搜尋找不到。
+字典含 ~23 條歷史已知 OCR 錯字（如「聯泳→聯詠」「光豐金→永豐金」），是安全網而非主要手段。**主要手段是 Step 5 寫對代號**。
 
 ### 6b. 產生 `tmp_record.json`
 
