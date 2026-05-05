@@ -209,7 +209,89 @@ dashboard 切 preset 不重新 fetch,只是切資料切片。
 
 ---
 
-## 8. 重跑與更新
+## 8. 股名 / 股號對照（symbol_index 與 aliases）
+
+dashboard 的「進階分析」與「策略回測」tab 顯示「2330 台積電」這種「代號 名稱」並列格式，靠的是 `data/symbol_index.json`（由 `scripts/symbol_resolve.py` 產生）。
+
+對應流程：
+
+```
+merged 中 unique symbols (1136)
+  │
+  ├── stock_map.json       (TWSE/TPEx 上市櫃官方簡稱)   覆蓋 ~86.5%
+  ├── stock_aliases.json   (人工 / 自動補表,凌駕 stock_map) 補 ~2-5%
+  └── stock_fetch_log.json (yfinance ticker 對照)
+        ↓
+  symbol_index.json   {symbol → {code, name, ticker, display}}
+```
+
+### 補 unknown 股名
+
+跑完 `fetch_prices.py` 後若 `unknown_names` 大於 ~10%，先試自動推導：
+
+```bash
+python scripts/lookup_aliases.py            # dry-run 看能補多少
+python scripts/lookup_aliases.py --write    # 寫入 data/stock_aliases.json
+python scripts/symbol_resolve.py            # 重建 symbol_index.json
+```
+
+`stock_aliases.json` 結構：
+
+```json
+{
+  "一銓": {"code": "3661", "name": "一銓-KY", "source": "substring_unique"},
+  "_candidates_佳邦": {
+    "candidates": [
+      {"name": "佳邦科技", "code": "2072"},
+      {"name": "佳邦*",     "code": "5314"}
+    ]
+  },
+  "_unmatched": ["一江", "三福", "中鴻", ...]
+}
+```
+
+- 正式 entry 由 `lookup_aliases.py` 自動或人工填入
+- `_candidates_<name>` 是多重候選（人工挑後展平成正式 entry，把該 `_candidates_*` key 刪掉）
+- `_unmatched` 是 stock_map 完全沒有候選的股名（多半興櫃 / 已下市 / 特殊命名），需手工查 TWSE / TPEx / Goodinfo 後填入
+
+### dashboard 顯示策略
+
+- 已解析 `code + name`：顯示 `"2330 台積電"`
+- 只有股號（已下市）：顯示 `"5080"`
+- 只有股名（待補）：顯示 `"新巨群 (待補)"` 提示用戶該補
+
+對 top20 表是預先在 `analyze_signals.py` 把 `display` 欄位寫進 `backtest_summary.json`；對進階分析 tab 是 dashboard 自己 fetch `symbol_index.json` 後即時 enrich。任一檔不存在或載入失敗時，都會 fallback 到原 symbol（不阻擋其他功能）。
+
+### 為什麼有 ~8% 解不掉（真實成因 — 不是腳本沒寫好）
+
+`scripts/lookup_aliases.py` 的解析鏈共五層（`strip_star` → `isin_normalize` → `substring_unique` → 多重候選 → 完全找不到）。對 1136 個 unique symbol 跑下來：
+
+| 階段 | 累積解析率 |
+|---|---|
+| stock_map（TWSE/TPEx 在市清單）只查 | 86.5% |
+| + substring 雙向比對 | 88.9% |
+| + 16 個下市股手工 web search 補 | 89.9% |
+| + ISIN 一覽表 normalize 比對 | 90.2% |
+| + Levenshtein ≤1 fuzzy + 4 個 OCR 手工修正 | **92.3%** |
+
+剩 88 個（5 個 only_code + 83 個 only_name）做過：
+
+- TWSE 全 mode ISIN 一覽表（含上市+上櫃+興櫃+債券+權證+TDR，~42k 筆）的 normalized 雙向 substring 全部 **MISS**
+- yfinance Ticker.info（下市股全 404）
+- cnyes / Goodinfo 直 fetch（部分 404，部分要先有 code）
+
+**結論**：這 88 個字串**不是任何台股實際的證券簡稱**，是 OCR 把真實公司名讀錯後產生的虛擬字串（典型 OCR 錯字模式：詠↔泳、銅↔鋼、磊↔罩、晶↔品、新↔金、創↔象 等字形相近字符）。腳本繼續猜（fuzzy 第一名）會把錯誤映射寫進 git，**比留 `(待補)` 更糟**：使用者看到「光磊 → 光罩」會以為這是實際對應，但其實 record 真的不是這檔。
+
+### 補強這 88 個的兩條路（都不在 analyze_signals 範圍內）
+
+1. **修 OCR scraper（治本）**：在 `.claude/commands/daily-fetch.md` 加「常見 OCR 錯字對照表」，daily-fetch 抓新資料時自動修正。只影響未來資料。
+2. **回原圖人工 review（治歷史資料）**：對高頻 unresolved（出現 ≥ 5 次）打開原始 scantrader 截圖逐筆校正，把確認的對應寫進 `data/stock_aliases.json`。
+
+兩條都需要人或人輔助，不適合放進自動 pipeline。dashboard 的 `(待補)` 標記就是給人看的紅燈。
+
+---
+
+## 9. 重跑與更新
 
 每天 `/daily-fetch` 跑完,merged 會更新。要重新分析:
 

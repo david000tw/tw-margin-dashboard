@@ -1,0 +1,518 @@
+{
+  "世芯": {
+    "code": "3661",
+    "name": "世芯-KY",
+    "source": "substring_unique"
+  },
+  "光寶": {
+    "code": "2301",
+    "name": "光寶科",
+    "source": "substring_unique"
+  },
+  "可寧衛": {
+    "code": "8422",
+    "name": "可寧衛*",
+    "source": "substring_unique"
+  },
+  "可寧衛*": {
+    "code": "8422",
+    "name": "可寧衛*",
+    "source": "substring_unique"
+  },
+  "台新新光": {
+    "code": "2887",
+    "name": "台新新光金",
+    "source": "substring_unique"
+  },
+  "台驊": {
+    "code": "2636",
+    "name": "台驊控股",
+    "source": "substring_unique"
+  },
+  "國巨": {
+    "code": "2327",
+    "name": "國巨*",
+    "source": "substring_unique"
+  },
+  "國巨*": {
+    "code": "2327",
+    "name": "國巨*",
+    "source": "substring_unique"
+  },
+  "奇力新": {
+    "code": "5202",
+    "name": "力新",
+    "source": "substring_unique"
+  },
+  "奇鈦": {
+    "code": "3430",
+    "name": "奇鈦科",
+    "source": "substring_unique"
+  },
+  "奉金寶-DR": {
+    "code": "2312",
+    "name": "金寶",
+    "source": "substring_unique"
+  },
+  "德控股-KY": {
+    "code": "4912",
+    "name": "聯德控股-KY",
+    "source": "substring_unique"
+  },
+  "愛普": {
+    "code": "6531",
+    "name": "愛普*",
+    "source": "substring_unique"
+  },
+  "愛普*": {
+    "code": "6531",
+    "name": "愛普*",
+    "source": "substring_unique"
+  },
+  "慧洋": {
+    "code": "2637",
+    "name": "慧洋-KY",
+    "source": "substring_unique"
+  },
+  "新光金": {
+    "code": "2887",
+    "name": "台新新光金",
+    "source": "substring_unique"
+  },
+  "新新光": {
+    "code": "2887",
+    "name": "台新新光金",
+    "source": "substring_unique"
+  },
+  "智通": {
+    "code": "8932",
+    "name": "智通*",
+    "source": "substring_unique"
+  },
+  "智通*": {
+    "code": "8932",
+    "name": "智通*",
+    "source": "substring_unique"
+  },
+  "榮華榮": {
+    "code": "1608",
+    "name": "華榮",
+    "source": "substring_unique"
+  },
+  "矽力": {
+    "code": "6415",
+    "name": "矽力*-KY",
+    "source": "substring_unique"
+  },
+  "聖暉": {
+    "code": "5536",
+    "name": "聖暉*",
+    "source": "substring_unique"
+  },
+  "聯亞科": {
+    "code": "3081",
+    "name": "聯亞",
+    "source": "substring_unique"
+  },
+  "聯邦": {
+    "code": "2838",
+    "name": "聯邦銀",
+    "source": "substring_unique"
+  },
+  "譜瑞": {
+    "code": "4966",
+    "name": "譜瑞-KY",
+    "source": "substring_unique"
+  },
+  "輝電子-KY": {
+    "code": "6672",
+    "name": "騰輝電子-KY",
+    "source": "substring_unique"
+  },
+  "長科*": {
+    "code": "6548",
+    "name": "長科*",
+    "source": "substring_unique"
+  },
+  "_candidates_世紀": {
+    "candidates": [
+      {
+        "name": "世紀風電",
+        "code": "2072",
+        "market": "TW"
+      },
+      {
+        "name": "世紀鋼",
+        "code": "9958",
+        "market": "TW"
+      },
+      {
+        "name": "世紀*",
+        "code": "5314",
+        "market": "TWO"
+      }
+    ]
+  },
+  "_candidates_元大": {
+    "candidates": [
+      {
+        "name": "元大金",
+        "code": "2885",
+        "market": "TW"
+      },
+      {
+        "name": "元大期貨",
+        "code": "6023",
+        "market": "TWO"
+      }
+    ]
+  },
+  "_candidates_材料": {
+    "candidates": [
+      {
+        "name": "材料*-KY",
+        "code": "4763",
+        "market": "TW"
+      },
+      {
+        "name": "達興材料",
+        "code": "5234",
+        "market": "TW"
+      },
+      {
+        "name": "汎瑋材料",
+        "code": "6967",
+        "market": "TWO"
+      }
+    ]
+  },
+  "_unmatched": [
+    "一誌",
+    "中嘉",
+    "中壽",
+    "中美品",
+    "中銅",
+    "企像電",
+    "佳必琦",
+    "保羅",
+    "信暉",
+    "信驛",
+    "倖詮電",
+    "倚訓",
+    "元品",
+    "光寶金",
+    "光洋料",
+    "光磊",
+    "光磊金",
+    "光豐金",
+    "台平",
+    "台新金",
+    "台煜",
+    "台爆",
+    "台璞",
+    "台硝",
+    "台韓投控",
+    "台驊投控",
+    "合品",
+    "吋伐",
+    "和鑫",
+    "品心科",
+    "品睿",
+    "品豪科",
+    "啟基",
+    "土電",
+    "城訊",
+    "大昌",
+    "奇鈜",
+    "奇鈺",
+    "奇銳",
+    "宏大",
+    "宏磊",
+    "富奇",
+    "富瀚",
+    "富香",
+    "寶齡富鋼",
+    "帆宜",
+    "常理",
+    "廣鼎-KY",
+    "彌華",
+    "彭銀",
+    "懋懋",
+    "敬鵲",
+    "晶值",
+    "晶炎",
+    "晶炙",
+    "晶睿",
+    "晶銘電",
+    "材料-KY",
+    "樺懋",
+    "漢嘉",
+    "潁崴",
+    "潁嵐",
+    "玉品光",
+    "玻茂",
+    "瑞量",
+    "環宁-KY",
+    "環球品",
+    "矽力-KY",
+    "禾仲堂",
+    "穎岳",
+    "穎崑",
+    "穎嵐",
+    "篠鼎-KY",
+    "簇鼎-KY",
+    "絢頎",
+    "綠創",
+    "綸嶺",
+    "緒創",
+    "義泰",
+    "耀華",
+    "聯泳",
+    "聯詩",
+    "聯釣",
+    "茂業達",
+    "茂美達",
+    "蟳茂",
+    "請瑞-KY",
+    "諾瑞-KY",
+    "買聯-KY",
+    "賣聰-KY",
+    "辛旺",
+    "辛炫",
+    "金可-KY",
+    "金橡電",
+    "鈞象",
+    "鈦象",
+    "鈦齊-KY",
+    "鈺寶-KY",
+    "鈺象",
+    "鉅創",
+    "鉅太",
+    "鉅象",
+    "鉅齊-KY",
+    "開發金",
+    "革新",
+    "頎威",
+    "鴻創"
+  ],
+  "2888": {
+    "code": "2888",
+    "name": "新光金",
+    "source": "manual_delisted"
+  },
+  "2823": {
+    "code": "2823",
+    "name": "中壽",
+    "source": "manual_delisted"
+  },
+  "3682": {
+    "code": "3682",
+    "name": "亞太電",
+    "source": "manual_delisted"
+  },
+  "5820": {
+    "code": "5820",
+    "name": "日盛金",
+    "source": "manual_delisted"
+  },
+  "2809": {
+    "code": "2809",
+    "name": "京城銀",
+    "source": "manual_lookup"
+  },
+  "6251": {
+    "code": "6251",
+    "name": "定穎",
+    "source": "manual_lookup"
+  },
+  "1701": {
+    "code": "1701",
+    "name": "中化",
+    "source": "manual_lookup"
+  },
+  "2456": {
+    "code": "2456",
+    "name": "奇力新",
+    "source": "manual_lookup"
+  },
+  "6288": {
+    "code": "6288",
+    "name": "聯嘉",
+    "source": "manual_lookup"
+  },
+  "3454": {
+    "code": "3454",
+    "name": "晶睿",
+    "source": "manual_lookup"
+  },
+  "2831": {
+    "code": "2831",
+    "name": "中華銀",
+    "source": "manual_lookup"
+  },
+  "2091": {
+    "code": "2091",
+    "name": null,
+    "source": "unknown_ocr_suspect"
+  },
+  "5080": {
+    "code": "5080",
+    "name": null,
+    "source": "unknown_ocr_suspect"
+  },
+  "2083": {
+    "code": "2083",
+    "name": null,
+    "source": "unknown_ocr_suspect"
+  },
+  "2683": {
+    "code": "2683",
+    "name": null,
+    "source": "unknown_ocr_suspect"
+  },
+  "2898": {
+    "code": "2898",
+    "name": null,
+    "source": "unknown_ocr_suspect"
+  },
+  "材料-KY": {
+    "code": "4763",
+    "name": "材料*-KY",
+    "source": "isin_normalize"
+  },
+  "材料": {
+    "code": "4763",
+    "name": "材料*-KY",
+    "source": "isin_normalize"
+  },
+  "矽力-KY": {
+    "code": "6415",
+    "name": "矽力*-KY",
+    "source": "isin_normalize"
+  },
+  "世紀": {
+    "code": "5314",
+    "name": "世紀*",
+    "source": "isin_normalize"
+  },
+  "環球品": {
+    "code": "6488",
+    "name": "環球晶",
+    "source": "fuzzy_lev1"
+  },
+  "禾仲堂": {
+    "code": "3026",
+    "name": "禾伸堂",
+    "source": "fuzzy_lev1"
+  },
+  "光寶金": {
+    "code": "2301",
+    "name": "光寶科",
+    "source": "fuzzy_lev1"
+  },
+  "玉品光": {
+    "code": "3406",
+    "name": "玉晶光",
+    "source": "fuzzy_lev1"
+  },
+  "倚訓": {
+    "code": "3032",
+    "name": "偉訓",
+    "source": "fuzzy_lev1"
+  },
+  "佳必琦": {
+    "code": "6197",
+    "name": "佳必琪",
+    "source": "fuzzy_lev1"
+  },
+  "品心科": {
+    "code": "6533",
+    "name": "晶心科",
+    "source": "fuzzy_lev1"
+  },
+  "倖詮電": {
+    "code": "2436",
+    "name": "偉詮電",
+    "source": "fuzzy_lev1"
+  },
+  "寶齡富鋼": {
+    "code": "1760",
+    "name": "寶齡富錦",
+    "source": "fuzzy_lev1"
+  },
+  "帆宜": {
+    "code": "6196",
+    "name": "帆宣",
+    "source": "fuzzy_lev1"
+  },
+  "品豪科": {
+    "code": "3006",
+    "name": "晶豪科",
+    "source": "fuzzy_lev1"
+  },
+  "茂美達": {
+    "code": "6138",
+    "name": "茂達",
+    "source": "fuzzy_lev1"
+  },
+  "茂業達": {
+    "code": "6138",
+    "name": "茂達",
+    "source": "fuzzy_lev1"
+  },
+  "敬鵲": {
+    "code": "2355",
+    "name": "敬鵬",
+    "source": "fuzzy_lev1"
+  },
+  "一誌": {
+    "code": "2486",
+    "name": "一詮",
+    "source": "fuzzy_lev1"
+  },
+  "光洋料": {
+    "code": "1785",
+    "name": "光洋科",
+    "source": "fuzzy_lev1"
+  },
+  "企像電": {
+    "code": "2368",
+    "name": "金像電",
+    "source": "fuzzy_lev1"
+  },
+  "晶銘電": {
+    "code": "3013",
+    "name": "晟銘電",
+    "source": "fuzzy_lev1"
+  },
+  "台驊投控": {
+    "code": "2636",
+    "name": "台驊控股",
+    "source": "fuzzy_lev1"
+  },
+  "元大": {
+    "code": "2885",
+    "name": "元大金",
+    "source": "fuzzy_lev1"
+  },
+  "台新金": {
+    "code": "2887",
+    "name": "台新新光金",
+    "source": "manual_ocr_fix"
+  },
+  "聯泳": {
+    "code": "3034",
+    "name": "聯詠",
+    "source": "manual_ocr_fix"
+  },
+  "光豐金": {
+    "code": "2890",
+    "name": "永豐金",
+    "source": "manual_ocr_fix"
+  },
+  "宏碩": {
+    "code": "2353",
+    "name": "宏碁",
+    "source": "manual_ocr_fix"
+  }
+}

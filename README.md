@@ -30,6 +30,8 @@ python tests/test_pipeline.py   # 執行單元測試確認環境 OK
 │   ├── fetch_prices.py            # 抓個股收盤 (yfinance)
 │   ├── fetch_twii.py              # 補加權指數 ^TWII 缺漏
 │   ├── analyze_signals.py         # 歷史訊號驗證 + 篩選 + 回測
+│   ├── symbol_resolve.py          # 整合 stock_map + aliases 產 symbol_index
+│   ├── lookup_aliases.py          # 用 substring match 自動推導股名別名
 │   └── install-hooks.sh           # 安裝 git pre-commit hook
 ├── reports/                       # signal_validation_*.md 快照 (commit)
 └── data/
@@ -37,6 +39,9 @@ python tests/test_pipeline.py   # 執行單元測試確認環境 OK
     ├── stock_data_YYYY.json       # 由 merged 派生的年份備份
     ├── stock_prices.json          # 個股收盤 (yfinance, fetch_prices.py 產出)
     ├── stock_fetch_log.json       # symbol_to_ticker 對照與抓不到的清單
+    ├── stock_map.json             # TWSE/TPEx 上市櫃官方簡稱 → code
+    ├── stock_aliases.json         # 人工/自動補的股名別名 (補 unknown_names)
+    ├── symbol_index.json          # 整合的 {symbol → display} (symbol_resolve.py 產)
     ├── twii_all.json              # 加權指數收盤價
     └── backtest_summary.json      # analyze_signals.py 產出,dashboard 回測 tab 讀
 ```
@@ -74,8 +79,11 @@ python pipeline.py dates
 # 1. 補抓股價(需 yfinance,週末跑一次足夠)
 python scripts/fetch_prices.py
 
-# 2. 跑訊號分析(產出 dashboard 用 JSON + 人讀 markdown 報告)
-python scripts/analyze_signals.py
+# 2. (可選)推導股名→代號別名,提升 dashboard 顯示對應率
+python scripts/lookup_aliases.py --write    # 自動補 substring 唯一匹配的股名
+
+# 3. 跑訊號分析(產出 dashboard 用 JSON + 人讀 markdown 報告)
+python scripts/analyze_signals.py           # 會自動更新 symbol_index.json
 ```
 
 產出:

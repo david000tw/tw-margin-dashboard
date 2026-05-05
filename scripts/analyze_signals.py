@@ -40,6 +40,7 @@ MERGED     = DATA / "all_data_merged.json"
 TWII       = DATA / "twii_all.json"
 PRICES     = DATA / "stock_prices.json"
 FETCH_LOG  = DATA / "stock_fetch_log.json"
+SYMBOL_IDX = DATA / "symbol_index.json"
 SUMMARY    = DATA / "backtest_summary.json"
 
 HORIZONS   = [1, 5, 10, 20, 60]
@@ -486,6 +487,14 @@ def build_signal_summary(samples: list[Sample], stats: list[SymbolStat], today: 
     }
 
 
+def _load_symbol_display() -> dict[str, str]:
+    """讀 data/symbol_index.json 拿 {symbol → display}。不存在則回空 dict。"""
+    if not SYMBOL_IDX.exists():
+        return {}
+    idx = json.loads(SYMBOL_IDX.read_text(encoding="utf-8"))
+    return {s: info.get("display", s) for s, info in idx.get("by_symbol", {}).items()}
+
+
 def build_presets(stats: list[SymbolStat], samples: list[Sample], grid: dict, today: str) -> dict:
     """
     對 each side 套用三組 preset:loose / recommended (per-side grid 最佳) / strict。
@@ -500,6 +509,7 @@ def build_presets(stats: list[SymbolStat], samples: list[Sample], grid: dict, to
     """
     today_d = datetime.strptime(today, "%Y-%m-%d").date()
     recent_lo = today_d.replace(year=today_d.year - 1).strftime("%Y-%m-%d")
+    display_map = _load_symbol_display()
 
     out: dict[str, dict[str, dict]] = {side: {} for side in SIDES}
     for side in SIDES:
@@ -532,7 +542,9 @@ def build_presets(stats: list[SymbolStat], samples: list[Sample], grid: dict, to
             cand.sort(key=lambda st: st.train_avg, reverse=(side != "bear"))
             agg["symbols_top20"] = [
                 {
-                    "symbol": st.symbol, "n": st.n,
+                    "symbol":  st.symbol,
+                    "display": display_map.get(st.symbol, st.symbol),
+                    "n": st.n,
                     "avg_excess": round(st.avg_excess, 6),
                     "win_rate":   round(st.win_rate, 4),
                     "t_stat":     round(st.t_stat, 4),
@@ -628,6 +640,14 @@ def main() -> int:
         miss = [p.name for p in (MERGED, TWII, PRICES, FETCH_LOG) if not p.exists()]
         print(f"[ERR] 缺少資料檔: {miss}", file=sys.stderr)
         return 1
+
+    # 確保 symbol_index 最新(讓 top20 帶得到 display 名稱)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from symbol_resolve import write_index as _write_symbol_index  # type: ignore[import-not-found]
+        _write_symbol_index()
+    except Exception as e:
+        print(f"[WARN] symbol_index 更新失敗,top20 將顯示原 symbol: {e}", file=sys.stderr)
 
     print("[1/6] 載入資料...")
     merged = json.loads(MERGED.read_text(encoding="utf-8"))

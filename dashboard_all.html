@@ -268,7 +268,9 @@ tr.alert td:first-child{border-left:3px solid #ff6b6b}
 <script>
 let RAW = [];
 let TWII = {};
+let SYMBOL_DISPLAY = {};   // {symbol → "代號 名稱"};fallback 為 symbol 原樣
 const ALERT_THRESHOLD = 170;
+function dispSym(s){ return SYMBOL_DISPLAY[s] || s; }
 const isAlert = r => r.rate >= ALERT_THRESHOLD;
 
 // ─── Utility ───────────────────────────────────────────────
@@ -529,7 +531,7 @@ function buildAnalytics(){
     const top = topN(data);
     new Chart(document.getElementById(canvasId),{
       type:'bar',
-      data:{labels:top.map(x=>x[0]), datasets:[{label:'次數', data:top.map(x=>x[1]), backgroundColor:color, borderRadius:3}]},
+      data:{labels:top.map(x=>dispSym(x[0])), datasets:[{label:'次數', data:top.map(x=>x[1]), backgroundColor:color, borderRadius:3}]},
       options:{indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
         scales:{
           x:{ticks:{color:'#aaa'},grid:{color:'#1e2330'}},
@@ -584,7 +586,7 @@ function buildAnalytics(){
     .map(s=>({sym:s, bull:countBull[s], bear:countBear[s], total:countBull[s]+countBear[s]}))
     .sort((a,b)=>b.total-a.total).slice(0,30);
   const rows = overlap.map(x=>`<tr>
-    <td style="font-weight:600">${x.sym}</td>
+    <td style="font-weight:600">${dispSym(x.sym)}</td>
     <td><span class="tag bull">${x.bull}</span></td>
     <td><span class="tag bear">${x.bear}</span></td>
     <td>${x.total}</td>
@@ -740,7 +742,7 @@ function renderTopSymbols(presetName){
     return;
   }
   const rows = tops.map(s=>`<tr>
-    <td style="font-weight:600">${s.symbol}</td>
+    <td style="font-weight:600">${s.display || dispSym(s.symbol)}</td>
     <td>${s.n}</td>
     <td>${(s.avg_excess>=0?'+':'')+(s.avg_excess*100).toFixed(2)}%</td>
     <td>${(s.train_avg>=0?'+':'')+(s.train_avg*100).toFixed(2)}%</td>
@@ -812,6 +814,18 @@ async function init(){
     if(!twiiResp.ok) throw new Error(`twii_all.json HTTP ${twiiResp.status}`);
     RAW = await rawResp.json();
     TWII = await twiiResp.json();
+
+    // symbol_index 不在 = 顯示原 symbol;有就 enrich 為「代號 名稱」
+    try {
+      const idxResp = await fetch('./data/symbol_index.json', {cache: 'no-cache'});
+      if(idxResp.ok){
+        const idx = await idxResp.json();
+        for(const [s, info] of Object.entries(idx.by_symbol || {})){
+          SYMBOL_DISPLAY[s] = info.display || s;
+        }
+      }
+    } catch(_){ /* 沒這檔就略過,不阻擋 dashboard 主功能 */ }
+
     filtered = [...RAW].reverse();
     updateHeader();
     buildOverview();
