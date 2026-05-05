@@ -14,7 +14,9 @@ python tests/test_pipeline.py   # 執行單元測試確認環境 OK
 
 ```
 .
-├── pipeline.py                    # 資料 pipeline (append/rebuild/check/status/dates)
+├── pipeline.py                    # 資料 pipeline (append/regen-years/check/status/dates)
+├── docs/
+│   └── SIGNAL_ANALYSIS.md         # 訊號分析方法論 + 限制聲明 (實單前必讀)
 ├── dashboard_all.html             # Dashboard (fetch JSON,需 HTTP server)
 ├── scraper_guide.md               # 4 張圖解讀規則 + OCR 常見錯誤
 ├── 啟動Dashboard.bat              # 啟動 HTTP server + 開 Chrome
@@ -27,11 +29,16 @@ python tests/test_pipeline.py   # 執行單元測試確認環境 OK
 ├── scripts/
 │   ├── fetch_prices.py            # 抓個股收盤 (yfinance)
 │   ├── fetch_twii.py              # 補加權指數 ^TWII 缺漏
+│   ├── analyze_signals.py         # 歷史訊號驗證 + 篩選 + 回測
 │   └── install-hooks.sh           # 安裝 git pre-commit hook
+├── reports/                       # signal_validation_*.md 快照 (commit)
 └── data/
-    ├── all_data_merged.json       # 全歷史合併 (dashboard 主來源)
-    ├── stock_data_YYYY.json       # 依年份分檔
-    └── twii_all.json              # 加權指數收盤價
+    ├── all_data_merged.json       # 全歷史合併 (single source of truth, dashboard 讀這份)
+    ├── stock_data_YYYY.json       # 由 merged 派生的年份備份
+    ├── stock_prices.json          # 個股收盤 (yfinance, fetch_prices.py 產出)
+    ├── stock_fetch_log.json       # symbol_to_ticker 對照與抓不到的清單
+    ├── twii_all.json              # 加權指數收盤價
+    └── backtest_summary.json      # analyze_signals.py 產出,dashboard 回測 tab 讀
 ```
 
 ## 使用方式
@@ -48,10 +55,10 @@ python pipeline.py append \
   --bear "長榮,陽明" \
   --top5 "台積電,富邦金,玉山金,中信金,國泰金"
 
-# 同步 Dashboard header 文字
-python pipeline.py rebuild
+# 從 merged 重建所有年份檔(手動編輯 merged 後使用)
+python pipeline.py regen-years
 
-# 驗證資料完整性（schema、年份檔與 merged 同步、TWII 缺漏）
+# 驗證資料完整性(schema、年份檔派生一致性、TWII 缺漏)
 python pipeline.py check
 
 # 查看目前狀態
@@ -60,6 +67,24 @@ python pipeline.py status
 # 列出所有已收錄日期
 python pipeline.py dates
 ```
+
+## 訊號分析(out-of-sample 回測 + 篩選)
+
+```bash
+# 1. 補抓股價(需 yfinance,週末跑一次足夠)
+python scripts/fetch_prices.py
+
+# 2. 跑訊號分析(產出 dashboard 用 JSON + 人讀 markdown 報告)
+python scripts/analyze_signals.py
+```
+
+產出:
+- `data/backtest_summary.json` — dashboard「策略回測」tab 直接讀(commit)
+- `reports/signal_validation_YYYY-MM-DD.md` — 人讀快照(commit)
+- `reports/per_sample.csv` 與 `reports/symbol_stats.csv` — 中間產物(gitignore)
+
+方法論、限制聲明、訊號的因果假設請見 [`docs/SIGNAL_ANALYSIS.md`](docs/SIGNAL_ANALYSIS.md)。
+**實單前必讀那份文件**(尤其限制聲明那節)。
 
 ## 新增一筆資料的格式
 

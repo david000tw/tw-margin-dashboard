@@ -220,23 +220,54 @@ tr.alert td:first-child{border-left:3px solid #ff6b6b}
 <!-- ===== TAB: 策略回測 ===== -->
 <div id="tab-backtest" class="content">
   <div id="backtestStatus" class="result-info">載入中…</div>
+  <div id="backtestMeta" style="font-size:12px;color:#888;margin-bottom:12px;display:none"></div>
+  <div class="filter-bar" id="backtestPresetBar" style="display:none">
+    <span style="font-size:13px;color:#aaa;align-self:center">門檻 preset:</span>
+    <select id="presetSel" onchange="renderBacktest(this.value)">
+      <option value="loose">寬鬆 (n≥3, t≥1.65)</option>
+      <option value="recommended" selected>推薦 (per-side grid 最佳)</option>
+      <option value="strict">嚴格 (n≥10, t≥2.58)</option>
+    </select>
+    <span id="presetParams" style="font-size:11px;color:#666;align-self:center"></span>
+  </div>
   <div class="cards" id="backtestCards"></div>
   <div class="chart-wrap">
-    <div class="chart-title">T+N 日相對 TWII 超額報酬(正值 = 打敗大盤)</div>
+    <div class="chart-title">T+N 日相對 TWII 超額報酬(三條線:全部股票 / 篩選後全期 / 篩選後 test 窗)</div>
+    <div class="chart-controls">
+      <button class="btn-sm active" onclick="setBtSide('bull',this)">Bull</button>
+      <button class="btn-sm" onclick="setBtSide('bear',this)">Bear</button>
+      <button class="btn-sm" onclick="setBtSide('top5',this)">Top5</button>
+    </div>
     <canvas id="excessReturnChart" height="140"></canvas>
-    <div style="font-size:11px;color:#666;margin-top:8px">方法:對每個 record,將當日 bull/bear/top5 股票各自的 T+N 日漲跌與同期 TWII 漲跌相減,所有日期平均後繪圖</div>
   </div>
   <div class="chart-wrap">
-    <div class="chart-title">Bull vs Bear 勝率(T+N 日漲跌為正的比例)</div>
-    <canvas id="winRateChart" height="140"></canvas>
+    <div class="chart-title">訊號衰退檢驗 — 全期 vs 近 12 個月(各 side T+N 平均超額)</div>
+    <canvas id="decayChart" height="140"></canvas>
+    <div style="font-size:11px;color:#666;margin-top:8px">若近 12 個月線明顯偏離全期線,代表訊號正在衰退 / 強化</div>
   </div>
+  <div class="chart-wrap">
+    <div class="chart-title">篩選後個股池 Top 20 (T+20)</div>
+    <div class="chart-controls">
+      <button class="btn-sm active" onclick="setBtTopSide('bull',this)">Bull</button>
+      <button class="btn-sm" onclick="setBtTopSide('bear',this)">Bear</button>
+      <button class="btn-sm" onclick="setBtTopSide('top5',this)">Top5</button>
+    </div>
+    <div id="topSymbolsTable"></div>
+  </div>
+  <details style="margin-top:14px">
+    <summary style="cursor:pointer;color:#aaa;font-size:13px">方法與限制(必讀)</summary>
+    <div style="padding:12px 0;font-size:12px;color:#aaa;line-height:1.7">
+      計算邏輯、統計顯著性、篩選規則與**重要的限制聲明**請見
+      <code>docs/SIGNAL_ANALYSIS.md</code>。
+      重點:不含交易成本、不處理持倉重疊、不做風險調整、不考慮基本面。
+      實單前請先讀完該文件,並把預期超額報酬打 7-8 折。
+    </div>
+  </details>
 </div>
 
 <script>
 let RAW = [];
 let TWII = {};
-let PRICES = null;       // { dates: [...], prices: { ticker: {start, csv} } }
-let SYM_TO_TICKER = {};  // { "2330": "2330.TW", "台積電": "2330.TW", ... }
 const ALERT_THRESHOLD = 170;
 const isAlert = r => r.rate >= ALERT_THRESHOLD;
 
@@ -563,147 +594,108 @@ function buildAnalytics(){
     <tbody>${rows}</tbody></table>`;
 }
 
-// ─── Backtest (Phase 2) ────────────────────────────────────
+// ─── Backtest (從 backtest_summary.json 讀預先算好的結果) ────
 let backtestBuilt = false;
+let BT_SUMMARY = null;
+let BT_SIDE = 'bull';     // 圖 1 顯示哪一 side
+let BT_TOP_SIDE = 'bull'; // top20 表顯示哪一 side
+let excessChartInst = null;
+let decayChartInst  = null;
+
+const SIDE_LABEL = { bull: 'Bull (法人買)', bear: 'Bear (借券加)', top5: 'Top5 (融資減+法人買)' };
+const SIDE_COLOR = { bull: '#51cf66', bear: '#ff6b6b', top5: '#74c0fc' };
+
 async function ensureBacktest(){
   if(backtestBuilt) return;
   const status = document.getElementById('backtestStatus');
-  status.textContent = '載入股價資料 (~5 MB)...';
+  status.textContent = '載入 backtest summary...';
   try{
-    const [pricesRaw, fetchLog] = await Promise.all([
-      fetch('./data/stock_prices.json', {cache:'no-cache'}).then(r=>r.json()),
-      fetch('./data/stock_fetch_log.json', {cache:'no-cache'}).then(r=>r.json())
-    ]);
-    PRICES = pricesRaw;
-    SYM_TO_TICKER = fetchLog.symbol_to_ticker || {};
+    BT_SUMMARY = await fetch('./data/backtest_summary.json',{cache:'no-cache'}).then(r=>r.json());
     backtestBuilt = true;
-    buildBacktest();
+    status.style.display = 'none';
+    document.getElementById('backtestMeta').style.display = '';
+    document.getElementById('backtestPresetBar').style.display = '';
+    renderBacktestMeta();
+    renderBacktest('recommended');
   } catch(e){
-    status.innerHTML = `❌ 載入失敗: ${e.message}<br>請確認 data/stock_prices.json 與 data/stock_fetch_log.json 存在(跑 <code>python scripts/fetch_prices.py</code>)`;
+    status.innerHTML = `❌ 載入失敗: ${e.message}<br>請跑 <code>python scripts/analyze_signals.py</code> 產出 <code>data/backtest_summary.json</code>。`;
   }
 }
 
-function getCloseOnOrBefore(ticker, targetDate){
-  const p = PRICES.prices[ticker];
-  if(!p) return null;
-  const vals = p.csv.split(',');
-  const dates = PRICES.dates;
-  const targetIdx = dates.indexOf(targetDate);
-  if(targetIdx < 0){
-    // 找 ≤ target 的最近日
-    let i = dates.length - 1;
-    while(i >= 0 && dates[i] > targetDate) i--;
-    if(i < 0) return null;
-    return readPrice(p, vals, i);
-  }
-  return readPrice(p, vals, targetIdx);
+function renderBacktestMeta(){
+  const w = BT_SUMMARY.windows;
+  const at = (BT_SUMMARY.generated_at || '').slice(0, 19).replace('T', ' ');
+  document.getElementById('backtestMeta').innerHTML =
+    `📅 報告:${at} ｜ 訓練窗 ${w.train[0]} ~ ${w.train[1]} ｜ 測試窗 ${w.test[0]} ~ ${w.test[1]}`;
 }
 
-function readPrice(p, vals, dateIdx){
-  const i = dateIdx - p.start;
-  if(i < 0 || i >= vals.length) return null;
-  const v = vals[i];
-  return v === '' ? null : parseFloat(v);
+function setBtSide(side, btn){
+  document.querySelectorAll('#tab-backtest .chart-wrap:nth-of-type(1) .btn-sm').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  BT_SIDE = side;
+  renderBacktest(document.getElementById('presetSel').value);
 }
 
-function getCloseNDaysLater(ticker, targetDate, n){
-  const p = PRICES.prices[ticker];
-  if(!p) return null;
-  const vals = p.csv.split(',');
-  const dates = PRICES.dates;
-  let baseIdx = dates.indexOf(targetDate);
-  if(baseIdx < 0){
-    baseIdx = dates.length - 1;
-    while(baseIdx >= 0 && dates[baseIdx] > targetDate) baseIdx--;
-    if(baseIdx < 0) return null;
-  }
-  // 往前跳 n 個有效交易日 (不一定等於 calendar day)
-  let count = 0, j = baseIdx;
-  while(count < n && j < dates.length - 1){
-    j++;
-    count++;
-  }
-  return readPrice(p, vals, j);
+function setBtTopSide(side, btn){
+  document.querySelectorAll('#tab-backtest .chart-wrap:nth-of-type(3) .btn-sm').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  BT_TOP_SIDE = side;
+  renderTopSymbols(document.getElementById('presetSel').value);
 }
 
-function buildBacktest(){
-  const status = document.getElementById('backtestStatus');
-  const splitList = s => (s||'').split(',').map(x=>x.trim()).filter(Boolean);
-  const horizons = [1, 3, 5, 10, 20, 60];
+function fmtPct(v, decimals){
+  if(v === null || v === undefined) return '–';
+  const d = decimals === undefined ? 2 : decimals;
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(d) + '%';
+}
 
-  // 為每個 horizon 累計 bull/bear/top5 的超額報酬 vs TWII
-  const agg = {bull:{}, bear:{}, top5:{}};
-  horizons.forEach(h=>{
-    agg.bull[h]  = {sum:0, n:0, win:0};
-    agg.bear[h]  = {sum:0, n:0, win:0};
-    agg.top5[h]  = {sum:0, n:0, win:0};
-  });
+function renderBacktest(presetName){
+  const summary = BT_SUMMARY;
+  const horizons = summary.horizons.map(String);
 
-  const twiiDates = Object.keys(TWII).sort();
+  // 卡片:bull / bear / top5 在 T+20 的 train_avg vs test_avg(篩選後 preset)
+  const cards = ['bull','bear','top5'].map(side=>{
+    const preset = summary.by_side[side].filtered_presets[presetName];
+    const all_h20  = preset.by_horizon['20'] || {};
+    const test_h20 = (preset.test_window || {}).by_horizon ?
+                     preset.test_window.by_horizon['20'] : {};
+    const train_avg = all_h20.avg_excess;
+    const test_avg  = test_h20.avg_excess;
+    const cls = (test_avg !== undefined && (
+      (side === 'bear' ? test_avg < 0 : test_avg > 0)
+    )) ? 'ok' : 'warn';
+    const dir = side === 'bear' ? '↓' : '↑';
+    return `<div class="card ${cls}">
+      <div class="val">${fmtPct(test_avg, 2)}</div>
+      <div class="label">${SIDE_LABEL[side]} ${dir}<br>
+        <span style="opacity:.6">test ${test_h20.n||0} 樣本 · 全期 ${fmtPct(train_avg,2)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('backtestCards').innerHTML = cards;
 
-  function twiiReturn(date, n){
-    const i = twiiDates.indexOf(date);
-    if(i < 0) return null;
-    const base = TWII[date];
-    let j = i, cnt = 0;
-    while(cnt < n && j < twiiDates.length - 1){ j++; cnt++; }
-    const later = TWII[twiiDates[j]];
-    return (!base || !later) ? null : (later/base - 1);
-  }
+  // preset params 顯示
+  const recommendedParams = summary.by_side[BT_SIDE].filtered_presets[presetName].params;
+  document.getElementById('presetParams').textContent =
+    'params: ' + JSON.stringify(recommendedParams);
 
-  let processed = 0;
-  RAW.forEach(r=>{
-    horizons.forEach(h=>{
-      const twiiRet = twiiReturn(r.date, h);
-      if(twiiRet === null) return;
-      ['bull','bear','top5'].forEach(side=>{
-        const raw = side==='top5' ? r.top5_margin_reduce_inst_buy : r[side];
-        const syms = splitList(raw);
-        syms.forEach(sym=>{
-          const t = SYM_TO_TICKER[sym];
-          if(!t) return;
-          const p0 = getCloseOnOrBefore(t, r.date);
-          const pN = getCloseNDaysLater(t, r.date, h);
-          if(p0===null || pN===null || p0===0) return;
-          const ret = pN/p0 - 1;
-          const excess = ret - twiiRet;
-          agg[side][h].sum += excess;
-          agg[side][h].n++;
-          if(excess > 0) agg[side][h].win++;
-        });
-      });
-    });
-    processed++;
-  });
+  // 圖 1:三條線 (all 全期 / filtered 全期 / filtered test 窗)
+  const sideData = summary.by_side[BT_SIDE];
+  const presetData = sideData.filtered_presets[presetName];
+  const allLine      = horizons.map(h => (sideData.all.by_horizon[h]?.avg_excess ?? null) * 100);
+  const filteredLine = horizons.map(h => (presetData.by_horizon[h]?.avg_excess ?? null) * 100);
+  const testLine     = horizons.map(h => (presetData.test_window?.by_horizon[h]?.avg_excess ?? null) * 100);
 
-  const avg = (side, h) => agg[side][h].n ? agg[side][h].sum/agg[side][h].n * 100 : null;
-  const winRate = (side, h) => agg[side][h].n ? agg[side][h].win/agg[side][h].n * 100 : null;
-  const sampleN = side => horizons.map(h => agg[side][h].n);
-
-  // Cards
-  const bullSample = agg.bull[20].n;
-  const bullAvg20  = avg('bull', 20);
-  const bearAvg20  = avg('bear', 20);
-  const top5Avg20  = avg('top5', 20);
-  document.getElementById('backtestCards').innerHTML = `
-    <div class="card gold"><div class="val">${bullSample.toLocaleString()}</div><div class="label">Bull 樣本數 (T+20)</div></div>
-    <div class="card ${bullAvg20>0?'ok':'warn'}"><div class="val">${bullAvg20===null?'–':(bullAvg20>=0?'+':'')+bullAvg20.toFixed(2)+'%'}</div><div class="label">Bull T+20 超額報酬</div></div>
-    <div class="card ${bearAvg20<0?'ok':'warn'}"><div class="val">${bearAvg20===null?'–':(bearAvg20>=0?'+':'')+bearAvg20.toFixed(2)+'%'}</div><div class="label">Bear T+20 超額報酬</div></div>
-    <div class="card ${top5Avg20>0?'ok':'warn'}"><div class="val">${top5Avg20===null?'–':(top5Avg20>=0?'+':'')+top5Avg20.toFixed(2)+'%'}</div><div class="label">Top5 T+20 超額報酬</div></div>
-  `;
-
-  status.textContent = `已處理 ${processed} 筆 records,bull/bear/top5 股票 × T+N 日組合共計算 ${horizons.reduce((a,h)=>a+agg.bull[h].n+agg.bear[h].n+agg.top5[h].n,0).toLocaleString()} 筆價格對。`;
-
-  // 超額報酬圖
-  new Chart(document.getElementById('excessReturnChart'),{
+  if(excessChartInst) excessChartInst.destroy();
+  excessChartInst = new Chart(document.getElementById('excessReturnChart'),{
     type:'line',
     data:{
       labels: horizons.map(h=>'T+'+h),
       datasets:[
-        {label:'Bull (外資買超)',  data:horizons.map(h=>avg('bull',h)),  borderColor:'#51cf66', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'Bear (外資賣超)',  data:horizons.map(h=>avg('bear',h)),  borderColor:'#ff6b6b', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'Top5 (融資減+法人買)', data:horizons.map(h=>avg('top5',h)), borderColor:'#74c0fc', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'0% 基準',          data:horizons.map(()=>0), borderColor:'rgba(255,255,255,0.2)', borderDash:[4,4], pointRadius:0, borderWidth:1}
+        {label:'all 全期 (基準)',  data:allLine,      borderColor:'rgba(170,170,170,0.7)', backgroundColor:'transparent', tension:0.25, pointRadius:3, borderDash:[4,4]},
+        {label:'filtered 全期',    data:filteredLine, borderColor:SIDE_COLOR[BT_SIDE], backgroundColor:'transparent', tension:0.25, pointRadius:4, borderWidth:2},
+        {label:'filtered test 窗 (out-of-sample)', data:testLine, borderColor:'#ffd700', backgroundColor:'transparent', tension:0.25, pointRadius:4, borderWidth:2.5},
+        {label:'0%',               data:horizons.map(()=>0), borderColor:'rgba(255,255,255,0.2)', borderDash:[4,4], pointRadius:0, borderWidth:1}
       ]
     },
     options:{responsive:true, plugins:{legend:{labels:{color:'#aaa'}}},
@@ -714,25 +706,53 @@ function buildBacktest(){
     }
   });
 
-  // 勝率圖
-  new Chart(document.getElementById('winRateChart'),{
+  // 圖 2:衰退檢驗 — 全期 vs 近 12 個月,三條 side
+  if(decayChartInst) decayChartInst.destroy();
+  decayChartInst = new Chart(document.getElementById('decayChart'),{
     type:'line',
     data:{
       labels: horizons.map(h=>'T+'+h),
-      datasets:[
-        {label:'Bull 勝率 %',  data:horizons.map(h=>winRate('bull',h)),  borderColor:'#51cf66', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'Bear 勝率 %',  data:horizons.map(h=>winRate('bear',h)),  borderColor:'#ff6b6b', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'Top5 勝率 %',  data:horizons.map(h=>winRate('top5',h)),  borderColor:'#74c0fc', backgroundColor:'transparent', tension:0.25, pointRadius:4},
-        {label:'50% 基準',     data:horizons.map(()=>50), borderColor:'rgba(255,255,255,0.2)', borderDash:[4,4], pointRadius:0, borderWidth:1}
-      ]
+      datasets: ['bull','bear','top5'].flatMap(side=>{
+        const all    = horizons.map(h => (summary.by_side[side].all.by_horizon[h]?.avg_excess ?? null) * 100);
+        const recent = horizons.map(h => (summary.by_side[side].recent.by_horizon[h]?.avg_excess ?? null) * 100);
+        return [
+          {label: `${side} 全期`,   data:all,    borderColor:SIDE_COLOR[side], borderDash:[4,4], pointRadius:3, tension:0.25},
+          {label: `${side} 近 12m`, data:recent, borderColor:SIDE_COLOR[side], borderWidth:2.5, pointRadius:4, tension:0.25},
+        ];
+      })
     },
-    options:{responsive:true, plugins:{legend:{labels:{color:'#aaa'}}},
+    options:{responsive:true, plugins:{legend:{labels:{color:'#aaa', font:{size:11}}}},
       scales:{
         x:{ticks:{color:'#aaa'},grid:{color:'#1e2330'}},
-        y:{ticks:{color:'#aaa',callback:v=>v.toFixed(0)+'%'},grid:{color:'#1e2330'},min:30,max:70}
+        y:{ticks:{color:'#aaa',callback:v=>(v>=0?'+':'')+v.toFixed(2)+'%'},grid:{color:'#1e2330'}}
       }
     }
   });
+
+  renderTopSymbols(presetName);
+}
+
+function renderTopSymbols(presetName){
+  const tops = BT_SUMMARY.by_side[BT_TOP_SIDE].filtered_presets[presetName].symbols_top20 || [];
+  if(!tops.length){
+    document.getElementById('topSymbolsTable').innerHTML =
+      '<div style="color:#666;padding:14px">此 preset 在此 side 篩不出任何個股(門檻太緊或訊號失效)</div>';
+    return;
+  }
+  const rows = tops.map(s=>`<tr>
+    <td style="font-weight:600">${s.symbol}</td>
+    <td>${s.n}</td>
+    <td>${(s.avg_excess>=0?'+':'')+(s.avg_excess*100).toFixed(2)}%</td>
+    <td>${(s.train_avg>=0?'+':'')+(s.train_avg*100).toFixed(2)}%</td>
+    <td>${(s.test_avg>=0?'+':'')+(s.test_avg*100).toFixed(2)}%</td>
+    <td>${(s.win_rate*100).toFixed(0)}%</td>
+    <td>${s.t_stat.toFixed(2)}</td>
+    <td>${s.recent_n}</td>
+  </tr>`).join('');
+  document.getElementById('topSymbolsTable').innerHTML =
+    `<div class="tbl-wrap"><table style="max-width:900px">
+      <thead><tr><th>股票</th><th>n</th><th>全期 avg</th><th>train avg</th><th>test avg</th><th>勝率</th><th>t</th><th>近 1y 次</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
 }
 
 // ─── Stock Search ──────────────────────────────────────────

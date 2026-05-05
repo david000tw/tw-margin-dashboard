@@ -47,3 +47,8 @@ desktop.ini
 # AI 分析產出
 agents/latest_report.md
 agents/__pycache__/
+
+# 訊號分析中間產物(per-sample / symbol_stats 太大不進 git;
+# reports/signal_validation_*.md 與 dashboard_backtest_*.png 仍會 commit)
+reports/per_sample.csv
+reports/symbol_stats.csv

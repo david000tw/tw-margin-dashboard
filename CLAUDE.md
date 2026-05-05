@@ -16,13 +16,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 2. Dashboard 必須透過 HTTP server 開啟
 `fetch('./data/...')` 在 `file://` 下會被 CORS 擋。使用者開 `啟動Dashboard.bat`，自動起 `python -m http.server 8899`。
 
-### 3. `rebuild` 是字串替換，不是 regenerate
-`pipeline.py rebuild` 以正則 `<div class="sub">...</div>` 定位後替換 header fallback 文字。若手動編輯 `dashboard_all.html` 破壞此標記，rebuild 會 raise。
+### 3. merged 是 single source of truth；year 檔為派生備份
+`all_data_merged.json` 是 dashboard 唯一資料來源。`stock_data_YYYY.json` 由 `append_record` 從 merged 派生（保留是因為 commit diff 較小、便於人工瀏覽）。
+- 不要手動編輯 year 檔；下次 `append` 寫到該年時會被覆蓋。要改資料就改 merged，再跑 `python pipeline.py regen-years`。
+- `check` 偵測到 year ↔ merged 不一致會 WARN（不是 ERROR），提示跑 `regen-years`。
 
-### 4. year 檔 與 merged 檔 雙軌
-`append` 同時寫兩邊；若手動改其中一邊，下次 `check` 會報 `[sync]` 錯誤。`check` 是 smoke test，append 後 / commit 前必跑。
-
-### 5. 股名規則
+### 4. 股名規則
 - 逗號分隔、**不加空格、不加引號**
 - 保留 `*`（如 `可寧衛*`）、`-KY`（如 `中美-KY`）
 - 歷史資料（2021–2024）多為股號，近期（2026）改用股名。混用合法，兩者都要支援。
@@ -36,17 +35,18 @@ record (dict/json)
 pipeline.py append  ──► validate_record()
   │                       │ 失敗 raise ValueError
   │                       ▼
-  ├─► data/stock_data_YYYY.json   (年份分檔,sorted)
-  └─► data/all_data_merged.json   (合併檔,dashboard fetch 目標)
-  │
-  └─► pipeline.py check           (smoke test,必跑)
-         │
-         └─► pipeline.py rebuild   (更新 dashboard header fallback)
+  └─► data/all_data_merged.json   (single source of truth, dashboard 讀這份)
+        │
+        └─► 派生 ──► data/stock_data_YYYY.json  (備份,僅作 commit diff)
+
+pipeline.py check          smoke test,append 後 / commit 前必跑
+pipeline.py regen-years    從 merged 重建所有年份檔(手動編輯 merged 後跑)
 
 dashboard_all.html:
   瀏覽器載入 → fetch ./data/all_data_merged.json
              → fetch ./data/twii_all.json
              → 前端 ALERT_THRESHOLD=170 判警戒
+             → updateHeader() 載完即時改寫 header
 ```
 
 ## Record schema
@@ -62,6 +62,17 @@ dashboard_all.html:
 ```
 
 `rate` 是 int 100–250；`bull/bear/top5_margin_reduce_inst_buy` 是字串。
+
+## 分析層（`scripts/analyze_signals.py`）
+
+訊號的歷史驗證、篩選、回測產出。**完整邏輯與限制在 `docs/SIGNAL_ANALYSIS.md`，這裡只記不從 code 看出的慣例**：
+
+- `data/backtest_summary.json` 是**派生產物**（跟 year 檔同性質），dashboard 直接讀。**不要手改**；下次 `analyze_signals.py` 會覆蓋。
+- `data/stock_prices.json` 與 `data/stock_fetch_log.json` 由 `scripts/fetch_prices.py` 產出（yfinance），同樣派生不可手改。
+- Python 端的 `read_price` / `get_close_on_or_before` / `get_close_n_days_later` 必須與 `dashboard_all.html:586-...` 的 JS 邏輯**完全一致**（不一致 → Python 報告與 dashboard 數字對不起來）；`tests/test_analyze_signals.py` 有 fixture 守護。
+- Bear 訊號用反向邏輯篩選（`train_avg ≤ -threshold`、用敗率而非勝率），grid search 也是 per-side 各跑一次，不要混在一起跑。
+- Train/test 切點 `2024-12-31`：不要用全期跑篩選後再評估同一段，那是 overfit。
+- 重大訊號發現要更新 `docs/SIGNAL_ANALYSIS.md` 的「實際結論」節（commit 進 git）；舊報告保留在 `reports/signal_validation_YYYY-MM-DD.md` 不覆蓋。
 
 ## 自動化擷取（`/daily-fetch`）
 
