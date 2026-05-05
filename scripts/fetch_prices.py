@@ -269,15 +269,9 @@ def main():
     log("\n=== Step 6: 自動更新 stock_aliases + symbol_index ===")
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
-        from lookup_aliases import main as run_lookup  # type: ignore[import-not-found]
+        from lookup_aliases import run as run_lookup  # type: ignore[import-not-found]
         from symbol_resolve import write_index  # type: ignore[import-not-found]
-        # lookup_aliases --write
-        old_argv = sys.argv
-        sys.argv = ["lookup_aliases.py", "--write"]
-        try:
-            run_lookup()
-        finally:
-            sys.argv = old_argv
+        run_lookup(write=True, verbose=False)
         write_index()
         log("[ok] stock_aliases.json + symbol_index.json 已更新")
     except Exception as e:

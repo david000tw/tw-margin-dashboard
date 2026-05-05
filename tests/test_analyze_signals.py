@@ -1,9 +1,10 @@
 """
 analyze_signals.py 的 unit test。
 
-重點:Python 側的 read_price / get_close_on_or_before / get_close_n_days_later
-必須與 dashboard_all.html:586-627 的 JS 邏輯完全一致(否則 Python 算的報告
-與 dashboard 顯示的數字會對不起來)。
+涵蓋計價尋址(find_idx_on_or_before / read_price / get_close_n_days_later)、
+twii_return 邊界(目標日不在 twii_dates 直接 None)、SymbolStat 的 train/test
+切窗、is_effective_signal 的 sign-driven 邏輯、grid_search 結構、
+build_signal_summary 完整輸出。
 
 跑:
     python -m pytest tests/test_analyze_signals.py -q
@@ -379,11 +380,14 @@ class TestBuildSignalSummary(unittest.TestCase):
                    p0=100, pN=105, ret=0.05, twii_ret=0.02, excess_ret=0.03),
         ]
         stats = compute_symbol_stats(samples, today="2026-01-01")
-        summary = build_signal_summary(samples, stats, today="2026-01-01")
+        grid = grid_search_thresholds(stats, samples)
+        summary = build_signal_summary(samples, stats, grid, today="2026-01-01")
         self.assertIn("by_side", summary)
         self.assertIn("bull", summary["by_side"])
         self.assertIn("by_horizon", summary["by_side"]["bull"]["all"])
         self.assertIn("20", summary["by_side"]["bull"]["all"]["by_horizon"])
+        self.assertIn("recommended_thresholds", summary)
+        self.assertIn("filtered_presets", summary["by_side"]["bull"])
 
 
 if __name__ == "__main__":

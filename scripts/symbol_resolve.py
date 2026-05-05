@@ -21,8 +21,8 @@ Output: data/symbol_index.json
 """
 from __future__ import annotations
 
-import json
 import re
+import sys
 from pathlib import Path
 
 BASE       = Path(__file__).resolve().parent.parent
@@ -33,24 +33,76 @@ ALIASES    = DATA / "stock_aliases.json"
 FETCH_LOG  = DATA / "stock_fetch_log.json"
 INDEX_FILE = DATA / "symbol_index.json"
 
+# record schema 的三個欄位 → 內部 side 簡稱
+SIDE_FIELDS = {
+    "bull": "bull",
+    "bear": "bear",
+    "top5": "top5_margin_reduce_inst_buy",
+}
+
+# 三組訊號的方向。bull/top5 期望正 alpha,bear 期望負 alpha;
+# 篩選邏輯與 dashboard 排序都靠 sign 驅動,而非 if side=="bear" 的字串特例。
+SIDE_CONFIG = {
+    "bull": {"sign": +1, "label": "Bull (法人買)"},
+    "bear": {"sign": -1, "label": "Bear (借券加)"},
+    "top5": {"sign": +1, "label": "Top5 (融資減+法人買)"},
+}
+
+# 主要分析 horizon。grid search、symbols_top20、dashboard cards 都以這個為準。
+PRIMARY_HORIZON = 20
+
 CODE_RE = re.compile(r"^(\d{4,6})([A-Z]*)$")
 
 
+def normalize_symbol(s: str) -> str:
+    """
+    Canonical 規範化:給 alias / fuzzy / fetch 等所有層級共用。
+    去掉警示符號 *、KY/DR 後綴、全形/半形空白。
+    """
+    if not s:
+        return ""
+    return (
+        s.strip()
+         .replace("*", "")
+         .replace("-KY", "")
+         .replace("-DR", "")
+         .replace(" ", "")
+         .replace("　", "")
+    )
+
+
+def _load_pipeline_io():
+    """Lazy import pipeline.load_json/save_json,共用 atomic write + Defender retry。"""
+    sys.path.insert(0, str(BASE))
+    from pipeline import load_json, save_json   # type: ignore[import-not-found]
+    return load_json, save_json
+
+
 def _load(path: Path, default):
+    """殘留入口,內部走 pipeline.load_json;檔不在回 default。"""
     if not path.exists():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    load_json, _ = _load_pipeline_io()
+    return load_json(path)
 
 
 def extract_symbols_from_merged(merged: list[dict]) -> set[str]:
+    """從 merged 萃取所有 unique symbol(bull / bear / top5 三欄)。共用入口。"""
     syms: set[str] = set()
     for r in merged:
-        for fld in ("bull", "bear", "top5_margin_reduce_inst_buy"):
+        for fld in SIDE_FIELDS.values():
             for s in (r.get(fld) or "").split(","):
                 s = s.strip()
                 if s:
                     syms.add(s)
     return syms
+
+
+def split_names(s: str) -> list[str]:
+    """逗號分隔股名字串 → list,strip 並去空。共用入口(與 agents/tools._split_names 等價)。"""
+    if not s:
+        return []
+    return [x.strip() for x in s.split(",") if x.strip()]
 
 
 def build_index(
@@ -136,10 +188,8 @@ def write_index(merged: list[dict] | None = None) -> dict:
     syms = extract_symbols_from_merged(merged_data)
     idx  = build_index(syms, stock_map, aliases, sym_to_t)
 
-    INDEX_FILE.write_text(
-        json.dumps(idx, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _, save_json = _load_pipeline_io()
+    save_json(INDEX_FILE, idx)
     return idx
 
 

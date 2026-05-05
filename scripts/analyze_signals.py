@@ -3,27 +3,28 @@
 
 跑一次,產出:
   data/backtest_summary.json                    給 dashboard fetch
-  reports/per_sample.csv                        ~17 萬筆逐樣本明細(gitignore)
-  reports/symbol_stats.csv                      ~6000 列個股×訊號×horizon(gitignore)
+  reports/symbol_stats.csv                      ~7800 列個股×訊號×horizon(gitignore)
   reports/signal_validation_YYYY-MM-DD.md       人讀快照(commit)
+  reports/per_sample.csv                        ~24 萬筆逐樣本明細(僅 --dump-samples 才產出)
 
 關鍵設計:
-  - 計價邏輯與 dashboard_all.html:586-627 完全一致(getCloseOnOrBefore /
-    getCloseNDaysLater) — Python 側照抄 JS,有 fixture test 守護(test_analyze_signals.py)
+  - 計價邏輯 read_price / get_close_on_or_before / get_close_n_days_later 是
+    這個 codebase 內唯一的實作;dashboard 早期版本曾在 JS 端做類似事但已重寫成
+    讀 backtest_summary.json,所以 Python 邏輯不再需要與 JS 同步
   - Train/test 嚴格分離:訓練窗 2021-01-01 ~ 2024-12-31 篩選 → 測試窗 2025-01-01 ~
-    2026-04-30 評估,grid search 用 test 窗 Sharpe 校準
+    今 評估,grid search 用 test 窗 abs Sharpe 校準
   - 不用 GA;規則式 + grid search 對 1182 天樣本量已足夠
 
 詳見 docs/SIGNAL_ANALYSIS.md
 """
 from __future__ import annotations
 
+import argparse
 import csv
-import json
 import math
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 
@@ -43,13 +44,17 @@ FETCH_LOG  = DATA / "stock_fetch_log.json"
 SYMBOL_IDX = DATA / "symbol_index.json"
 SUMMARY    = DATA / "backtest_summary.json"
 
-HORIZONS   = [1, 5, 10, 20, 60]
-SIDES      = ["bull", "bear", "top5"]
-SIDE_FIELD = {
-    "bull": "bull",
-    "bear": "bear",
-    "top5": "top5_margin_reduce_inst_buy",
-}
+# 共享 helpers(canonical 來源:scripts/symbol_resolve.py + pipeline.py)
+sys.path.insert(0, str(BASE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pipeline import load_json, save_json   # type: ignore[import-not-found]
+from symbol_resolve import (                 # type: ignore[import-not-found]
+    PRIMARY_HORIZON, SIDE_CONFIG, SIDE_FIELDS as SIDE_FIELD,
+    split_names,
+)
+
+HORIZONS   = [1, 5, 10, PRIMARY_HORIZON, 60]
+SIDES      = list(SIDE_CONFIG.keys())
 
 # 訓練/測試窗(嚴格分離,grid search 用 test 窗 Sharpe 校準)
 TRAIN_START = "2021-01-01"
@@ -129,6 +134,24 @@ def get_close_on_or_before(prices: dict, ticker: str, target: str) -> float | No
     return read_price(p, idx)
 
 
+def step_forward(dates: list, base_idx: int, n: int) -> int:
+    """從 base_idx 前進 n 個元素,夾在末尾。共用於股價與 TWII 的 N 日後尋址。"""
+    j = base_idx
+    cnt = 0
+    while cnt < n and j < len(dates) - 1:
+        j += 1
+        cnt += 1
+    return j
+
+
+def get_close_at_idx(prices: dict, ticker: str, dates_idx: int) -> float | None:
+    """已知 prices.dates 上的 idx 時直接取價(避免重複 find_idx_on_or_before)。"""
+    p = prices["prices"].get(ticker)
+    if p is None:
+        return None
+    return read_price(p, dates_idx)
+
+
 def get_close_n_days_later(prices: dict, ticker: str, target: str, n: int) -> float | None:
     """對應 dashboard getCloseNDaysLater:從 target 起在 prices.dates 索引中前進 N 個元素。"""
     p = prices["prices"].get(ticker)
@@ -198,33 +221,61 @@ def build_per_sample_table(
     prices: dict,
     sym2t:  dict[str, str],
 ) -> list[Sample]:
+    """
+    每個 record 的 (price base_idx, twii base_idx, 各 horizon 的 forward idx) 都在
+    record loop 開頭算一次,內層 ticker × horizon 直接 idx 查表,避免 1300×5 次線性 scan。
+    """
     twii_dates = sorted(twii.keys())
+    price_dates = prices["dates"]
     out: list[Sample] = []
+
+    # twii_ret 對 (date, h) 的快取(同日子常被多檔股票共用)
+    twii_ret_cache: dict[tuple[str, int], float | None] = {}
 
     for r in merged:
         d = r["date"]
         twii0 = twii.get(d)
         if twii0 is None:
-            continue   # 沒大盤基準,整筆跳過
+            continue
+
+        # Step A:對該日期算一次 price/twii base_idx,以及每個 horizon 的 forward idx
+        price_base = find_idx_on_or_before(price_dates, d)
+        if price_base < 0:
+            continue
+        price_h_idx = {h: step_forward(price_dates, price_base, h) for h in HORIZONS}
+
+        try:
+            twii_base = twii_dates.index(d)
+        except ValueError:
+            continue
+        twii_h_idx = {h: step_forward(twii_dates, twii_base, h) for h in HORIZONS}
+
+        # 該日期下各 horizon 的 twii 報酬一次算完,內層 ticker 共用
+        twii_rets: dict[int, float | None] = {}
+        for h in HORIZONS:
+            key = (d, h)
+            if key in twii_ret_cache:
+                twii_rets[h] = twii_ret_cache[key]
+                continue
+            later = twii.get(twii_dates[twii_h_idx[h]])
+            twii_rets[h] = (later / twii0 - 1) if (twii0 and later) else None
+            twii_ret_cache[key] = twii_rets[h]
 
         for side in SIDES:
             for sym in split_names(r.get(SIDE_FIELD[side], "")):
-                ticker = sym2t.get(sym)
-                if ticker is None:
-                    # 嘗試去掉 *(警示符號)再查
-                    ticker = sym2t.get(sym.rstrip("*"))
+                ticker = sym2t.get(sym) or sym2t.get(sym.rstrip("*"))
                 if ticker is None:
                     continue
 
-                p0 = get_close_on_or_before(prices, ticker, d)
-                if p0 is None or p0 == 0:
+                p0 = get_close_at_idx(prices, ticker, price_base)
+                if not p0:   # None 或 0
                     continue
 
                 for h in HORIZONS:
-                    pN = get_close_n_days_later(prices, ticker, d, h)
+                    pN = get_close_at_idx(prices, ticker, price_h_idx[h])
                     if pN is None:
                         continue
-                    tret = twii_return(twii, twii_dates, d, h)
+                    tret = twii_rets[h]
                     if tret is None:
                         continue
                     sret = pN / p0 - 1
@@ -285,23 +336,26 @@ def _stats_of(values: list[float]) -> tuple[int, float, float, float, float]:
     return n, avg, std, t, win
 
 
+def recent_window_lo(today: str) -> str:
+    """近 1 年(365 天)的下界,以 ISO 日期字串回傳。今天 - 365 天的形式,
+    用字串比對(s.date >= recent_lo)避免 hot loop 內反覆 strptime。"""
+    today_d = datetime.strptime(today, "%Y-%m-%d").date()
+    return (today_d - timedelta(days=365)).isoformat()
+
+
 def compute_symbol_stats(samples: list[Sample], today: str) -> list[SymbolStat]:
-    # 索引:(symbol, side, horizon) -> list[Sample]
     idx: dict[tuple[str, str, int], list[Sample]] = {}
     for s in samples:
         idx.setdefault((s.symbol, s.side, s.horizon), []).append(s)
 
-    today_d = datetime.strptime(today, "%Y-%m-%d").date()
+    recent_lo = recent_window_lo(today)
 
     stats: list[SymbolStat] = []
     for (sym, side, h), group in idx.items():
         all_excess = [s.excess_ret for s in group]
         n, avg, std, t, win = _stats_of(all_excess)
 
-        recent_excess = [
-            s.excess_ret for s in group
-            if (today_d - datetime.strptime(s.date, "%Y-%m-%d").date()).days <= 365
-        ]
+        recent_excess = [s.excess_ret for s in group if s.date >= recent_lo]
         rn, ravg, _, _, _ = _stats_of(recent_excess)
 
         train_excess = [s.excess_ret for s in group if TRAIN_START <= s.date <= TRAIN_END]
@@ -368,11 +422,9 @@ def is_effective_signal(stat: SymbolStat, params: dict) -> bool:
     """
     判斷一個 (symbol, side, horizon) 是否被選入篩選池。
 
-    bear 訊號預期 excess 為負(預警下跌),所以方向與門檻都反向:
-      - bull/top5:train_avg >= +min_avg_excess、train_winrate >= min_win_rate
-      - bear:    train_avg <= -min_avg_excess、(1-train_winrate) >= min_win_rate
-                                              ↑ 敗率 = 下跌率,bear 要這個高
-    abs(train_t) 與 train_n / recent_n 三個門檻 side 共用。
+    用 SIDE_CONFIG['sign'] 驅動方向(bull/top5: +1、bear: -1):
+      - sign * train_avg >= min_avg_excess     (bear 等價於 train_avg <= -threshold)
+      - effective_winrate >= min_win_rate      (bear 為敗率 = 1 - train_winrate)
     """
     if stat.train_n < params["min_n"]:
         return False
@@ -380,18 +432,12 @@ def is_effective_signal(stat: SymbolStat, params: dict) -> bool:
         return False
     if stat.recent_n < params["min_recent_n"]:
         return False
-
-    if stat.side == "bear":
-        if stat.train_avg > -params["min_avg_excess"]:
-            return False
-        if (1.0 - stat.train_winrate) < params["min_win_rate"]:
-            return False
-    else:
-        if stat.train_avg < params["min_avg_excess"]:
-            return False
-        if stat.train_winrate < params["min_win_rate"]:
-            return False
-
+    sign = SIDE_CONFIG[stat.side]["sign"]
+    if sign * stat.train_avg < params["min_avg_excess"]:
+        return False
+    effective_winrate = stat.train_winrate if sign > 0 else 1.0 - stat.train_winrate
+    if effective_winrate < params["min_win_rate"]:
+        return False
     return True
 
 
@@ -400,27 +446,43 @@ def evaluate_preset(
     samples: list[Sample],
     params: dict,
     side: str,
-    horizon: int = 20,
+    horizon: int = PRIMARY_HORIZON,
 ) -> dict:
     """
     對單一 side 的 stats 用 train 統計篩 → test 窗等權績效。
-    Sharpe 取 abs(avg)/std(bear 負 alpha 越多代表訊號越強,排序時取絕對值)。
+    保留 stand-alone 介面供 test 與外部 call;hot loop 改走
+    `_evaluate_with_buckets`(grid_search 預先 bucket samples 的 fast path)。
     """
-    selected: set[str] = {
-        st.symbol
-        for st in stats
-        if st.side == side and st.horizon == horizon and is_effective_signal(st, params)
-    }
+    side_h_stats = [st for st in stats if st.side == side and st.horizon == horizon]
+    test_buckets = _build_test_buckets(samples, side, horizon)
+    return _evaluate_with_buckets(side_h_stats, test_buckets, params, side)
+
+
+def _build_test_buckets(
+    samples: list[Sample], side: str, horizon: int,
+) -> dict[str, list[float]]:
+    """{symbol → list[excess_ret]} for given side+horizon, only test window."""
+    buckets: dict[str, list[float]] = {}
+    for s in samples:
+        if (s.side == side and s.horizon == horizon
+                and TEST_START <= s.date <= TEST_END):
+            buckets.setdefault(s.symbol, []).append(s.excess_ret)
+    return buckets
+
+
+def _evaluate_with_buckets(
+    side_h_stats: list[SymbolStat],
+    test_buckets: dict[str, list[float]],
+    params: dict,
+    side: str,
+) -> dict:
+    selected = {st.symbol for st in side_h_stats if is_effective_signal(st, params)}
     if not selected:
         return {"params": params, "side": side, "n_symbols": 0,
                 "test_n": 0, "test_avg": 0.0, "test_sharpe": 0.0, "test_winrate": 0.0}
-
-    test_excess = [
-        s.excess_ret for s in samples
-        if s.side == side and s.horizon == horizon
-        and s.symbol in selected
-        and TEST_START <= s.date <= TEST_END
-    ]
+    test_excess: list[float] = []
+    for sym in selected:
+        test_excess.extend(test_buckets.get(sym, []))
     n, avg, std, _, win = _stats_of(test_excess)
     sharpe = abs(avg) / std if std > 0 else 0.0
     return {
@@ -443,11 +505,21 @@ def _iter_grid() -> Iterable[dict]:
 
 
 def grid_search_thresholds(stats: list[SymbolStat], samples: list[Sample]) -> dict:
-    """每個 side 各搜尋 PARAM_GRID,用 test 窗 abs Sharpe 排序選最佳。"""
+    """
+    每個 side 各搜尋 PARAM_GRID,用 test 窗 abs Sharpe 排序選最佳。
+
+    優化:per-side 預先 bucket samples → 每個 grid combo 只看 selected ~10 個
+    symbol 的預算 list,不再對 240k samples 全 scan。原本 432×3×240k = 300M
+    次比較,降到 ~1k 次 dict 查表。
+    """
     combos = list(_iter_grid())
     by_side: dict[str, dict] = {}
     for side in SIDES:
-        results = [evaluate_preset(stats, samples, p, side=side, horizon=20) for p in combos]
+        side_h_stats = [st for st in stats
+                        if st.side == side and st.horizon == PRIMARY_HORIZON]
+        test_buckets = _build_test_buckets(samples, side, PRIMARY_HORIZON)
+        results = [_evaluate_with_buckets(side_h_stats, test_buckets, p, side)
+                   for p in combos]
         valid = [r for r in results if r["test_n"] >= 10]
         valid.sort(key=lambda r: r["test_sharpe"], reverse=True)
         if valid:
@@ -459,11 +531,15 @@ def grid_search_thresholds(stats: list[SymbolStat], samples: list[Sample]) -> di
 
 # ── Build summary JSON for dashboard ─────────────────────────
 
-def build_signal_summary(samples: list[Sample], stats: list[SymbolStat], today: str) -> dict:
-    today_d = datetime.strptime(today, "%Y-%m-%d").date()
-    recent_lo = (today_d.replace(year=today_d.year - 1)).strftime("%Y-%m-%d")
+def build_signal_summary(
+    samples: list[Sample], stats: list[SymbolStat], grid: dict, today: str,
+) -> dict:
+    """
+    回傳完整 backtest_summary dict(已含 filtered_presets 與 recommended_thresholds),
+    main 不需要做後續 patch。
+    """
+    recent_lo = recent_window_lo(today)
 
-    _ = stats   # 留待未來把 stats 直接餵進 by_side(目前都從 samples 重算)
     by_side: dict[str, dict] = {}
     for side in SIDES:
         side_samples = [s for s in samples if s.side == side]
@@ -472,7 +548,7 @@ def build_signal_summary(samples: list[Sample], stats: list[SymbolStat], today: 
             "recent": _aggregate_excess(side_samples, date_lo=recent_lo),
             "train":  _aggregate_excess(side_samples, TRAIN_START, TRAIN_END),
             "test":   _aggregate_excess(side_samples, TEST_START,  TEST_END),
-            "filtered_presets": {},   # 補 by build_presets
+            "filtered_presets": _build_presets_for_side(side, stats, samples, grid, recent_lo),
         }
 
     return {
@@ -484,78 +560,81 @@ def build_signal_summary(samples: list[Sample], stats: list[SymbolStat], today: 
             "recent": [recent_lo, today],
         },
         "by_side": by_side,
+        "recommended_thresholds": {s: grid["by_side"][s]["best"] for s in SIDES},
+        "grid_search_top10_by_side": {s: grid["by_side"][s]["top10"] for s in SIDES},
     }
 
 
 def _load_symbol_display() -> dict[str, str]:
     """讀 data/symbol_index.json 拿 {symbol → display}。不存在則回空 dict。"""
-    if not SYMBOL_IDX.exists():
+    try:
+        idx = load_json(SYMBOL_IDX)
+    except FileNotFoundError:
         return {}
-    idx = json.loads(SYMBOL_IDX.read_text(encoding="utf-8"))
     return {s: info.get("display", s) for s, info in idx.get("by_symbol", {}).items()}
 
 
-def build_presets(stats: list[SymbolStat], samples: list[Sample], grid: dict, today: str) -> dict:
-    """
-    對 each side 套用三組 preset:loose / recommended (per-side grid 最佳) / strict。
-
-    每組輸出:
-      params            該 preset 的 5 個門檻值
-      n_symbols         入選股數
-      by_horizon        篩選後股票池全期 T+N 表現(dashboard 圖 1「filtered」線)
-      test_window       篩選後在 test 窗 T+N 表現(dashboard 圖 1「test」線,真 out-of-sample)
-      recent_window     篩選後近 1 年 T+N 表現
-      symbols_top20     入選個股清單(bear 越負越前,其他越正越前)
-    """
-    today_d = datetime.strptime(today, "%Y-%m-%d").date()
-    recent_lo = today_d.replace(year=today_d.year - 1).strftime("%Y-%m-%d")
+def _build_presets_for_side(
+    side: str, stats: list[SymbolStat], samples: list[Sample],
+    grid: dict, recent_lo: str,
+) -> dict:
+    """單一 side 的 loose/recommended/strict 三組 preset 完整輸出。"""
+    sign = SIDE_CONFIG[side]["sign"]
+    side_stats = [st for st in stats if st.side == side]
+    side_samples = [s for s in samples if s.side == side]
     display_map = _load_symbol_display()
 
-    out: dict[str, dict[str, dict]] = {side: {} for side in SIDES}
-    for side in SIDES:
-        presets = {
-            "loose":       dict(PRESET_LOOSE),
-            "recommended": grid["by_side"][side]["best"],
-            "strict":      dict(PRESET_STRICT),
+    presets = {
+        "loose":       dict(PRESET_LOOSE),
+        "recommended": grid["by_side"][side]["best"],
+        "strict":      dict(PRESET_STRICT),
+    }
+    out: dict[str, dict] = {}
+    for name, params in presets.items():
+        selected_pairs = {
+            (st.symbol, st.horizon) for st in side_stats
+            if is_effective_signal(st, params)
         }
-        for name, params in presets.items():
-            selected_pairs = {
-                (st.symbol, st.horizon)
-                for st in stats
-                if st.side == side and is_effective_signal(st, params)
-            }
-            n_symbols = len(set(p[0] for p in selected_pairs))
-            sel_samples = [
-                s for s in samples
-                if s.side == side and (s.symbol, s.horizon) in selected_pairs
-            ]
-            agg = _aggregate_excess(sel_samples)
-            agg["params"] = params
-            agg["n_symbols"] = n_symbols
-            agg["test_window"]   = _aggregate_excess(sel_samples, TEST_START, TEST_END)
-            agg["recent_window"] = _aggregate_excess(sel_samples, date_lo=recent_lo)
+        n_symbols = len({p[0] for p in selected_pairs})
+        sel_samples = [s for s in side_samples
+                       if (s.symbol, s.horizon) in selected_pairs]
+        agg = _aggregate_excess(sel_samples)
+        agg["params"] = params
+        agg["n_symbols"] = n_symbols
+        agg["test_window"]   = _aggregate_excess(sel_samples, TEST_START, TEST_END)
+        agg["recent_window"] = _aggregate_excess(sel_samples, date_lo=recent_lo)
 
-            cand = [
-                st for st in stats
-                if st.side == side and st.horizon == 20 and is_effective_signal(st, params)
-            ]
-            cand.sort(key=lambda st: st.train_avg, reverse=(side != "bear"))
-            agg["symbols_top20"] = [
-                {
-                    "symbol":  st.symbol,
-                    "display": display_map.get(st.symbol, st.symbol),
-                    "n": st.n,
-                    "avg_excess": round(st.avg_excess, 6),
-                    "win_rate":   round(st.win_rate, 4),
-                    "t_stat":     round(st.t_stat, 4),
-                    "recent_n":   st.recent_n,
-                    "train_avg":  round(st.train_avg, 6),
-                    "test_avg":   round(st.test_avg, 6),
-                }
-                for st in cand[:20]
-            ]
-            out[side][name] = agg
+        # top20:按 sign * train_avg 降冪(bull/top5 取最正,bear 取最負)
+        cand = [st for st in side_stats
+                if st.horizon == PRIMARY_HORIZON and is_effective_signal(st, params)]
+        cand.sort(key=lambda st: sign * st.train_avg, reverse=True)
+        agg["symbols_top20"] = [
+            {
+                "symbol":  st.symbol,
+                "display": display_map.get(st.symbol, st.symbol),
+                "n": st.n,
+                "avg_excess": round(st.avg_excess, 6),
+                "win_rate":   round(st.win_rate, 4),
+                "t_stat":     round(st.t_stat, 4),
+                "recent_n":   st.recent_n,
+                "train_avg":  round(st.train_avg, 6),
+                "test_avg":   round(st.test_avg, 6),
+            }
+            for st in cand[:20]
+        ]
+        out[name] = agg
     return out
+
+
+# 保留舊 build_presets 公開介面(test 與外部 caller 可能仍 import)
+def build_presets(
+    stats: list[SymbolStat], samples: list[Sample], grid: dict, today: str,
+) -> dict:
+    recent_lo = recent_window_lo(today)
+    return {
+        side: _build_presets_for_side(side, stats, samples, grid, recent_lo)
+        for side in SIDES
+    }
 
 
 # ── Markdown report (commit) ─────────────────────────────────
@@ -636,68 +715,60 @@ def write_markdown_report(path: Path, summary: dict, grid: dict) -> None:
 # ── main ─────────────────────────────────────────────────────
 
 def main() -> int:
-    if not all(p.exists() for p in (MERGED, TWII, PRICES, FETCH_LOG)):
-        miss = [p.name for p in (MERGED, TWII, PRICES, FETCH_LOG) if not p.exists()]
-        print(f"[ERR] 缺少資料檔: {miss}", file=sys.stderr)
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--dump-samples", action="store_true",
+        help="額外寫 reports/per_sample.csv (~17 MB,平常不需要)",
+    )
+    args = ap.parse_args()
+
+    missing = [p.name for p in (MERGED, TWII, PRICES, FETCH_LOG) if not p.exists()]
+    if missing:
+        print(f"[ERR] 缺少資料檔: {missing}", file=sys.stderr)
         return 1
 
     # 確保 symbol_index 最新(讓 top20 帶得到 display 名稱)
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
         from symbol_resolve import write_index as _write_symbol_index  # type: ignore[import-not-found]
         _write_symbol_index()
     except Exception as e:
         print(f"[WARN] symbol_index 更新失敗,top20 將顯示原 symbol: {e}", file=sys.stderr)
 
-    print("[1/6] 載入資料...")
-    merged = json.loads(MERGED.read_text(encoding="utf-8"))
-    twii   = {k: float(v) for k, v in json.loads(TWII.read_text(encoding="utf-8")).items()}
-    prices = json.loads(PRICES.read_text(encoding="utf-8"))
-    sym2t  = json.loads(FETCH_LOG.read_text(encoding="utf-8"))["symbol_to_ticker"]
+    print("[1/5] 載入資料...")
+    merged = load_json(MERGED)
+    twii   = {k: float(v) for k, v in load_json(TWII).items()}
+    prices = load_json(PRICES)
+    sym2t  = load_json(FETCH_LOG)["symbol_to_ticker"]
     print(f"  merged={len(merged)} 筆, twii={len(twii)} 天, prices.dates={len(prices['dates'])} 天 × {len(prices['prices'])} ticker")
     print(f"  symbol_to_ticker={len(sym2t)} 筆")
 
     today = max(r["date"] for r in merged)
 
-    print("[2/6] 建 per-sample table...")
+    print("[2/5] 建 per-sample table...")
     samples = build_per_sample_table(merged, twii, prices, sym2t)
     print(f"  共 {len(samples):,} 筆樣本")
+    if args.dump_samples:
+        write_samples_csv(REPORTS / "per_sample.csv", samples)
+        print(f"  → reports/per_sample.csv 已寫入")
 
-    print("[3/6] 寫 reports/per_sample.csv ...")
-    write_samples_csv(REPORTS / "per_sample.csv", samples)
-
-    print("[4/6] 計算 symbol_stats...")
+    print("[3/5] 計算 symbol_stats...")
     stats = compute_symbol_stats(samples, today)
     print(f"  共 {len(stats):,} 列 (symbol × side × horizon)")
     write_symbol_stats_csv(REPORTS / "symbol_stats.csv", stats)
 
-    print("[5/6] Grid search 校準 threshold (per-side)...")
+    print("[4/5] Grid search 校準 threshold (per-side)...")
     grid = grid_search_thresholds(stats, samples)
     for side in SIDES:
         print(f"  {side}: {grid['by_side'][side]['best']}")
 
-    print("[6/6] 寫 backtest_summary.json + markdown 報告...")
-    summary = build_signal_summary(samples, stats, today)
-    presets_by_side = build_presets(stats, samples, grid, today)
-    for side in SIDES:
-        summary["by_side"][side]["filtered_presets"] = presets_by_side[side]
-    summary["recommended_thresholds"] = {
-        side: grid["by_side"][side]["best"] for side in SIDES
-    }
-    summary["grid_search_top10_by_side"] = {
-        side: grid["by_side"][side]["top10"] for side in SIDES
-    }
-
-    SUMMARY.write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    print("[5/5] 寫 backtest_summary.json + markdown 報告...")
+    summary = build_signal_summary(samples, stats, grid, today)
+    save_json(SUMMARY, summary)
     report_path = REPORTS / f"signal_validation_{today}.md"
     write_markdown_report(report_path, summary, grid)
 
     print(f"\n完成。")
     print(f"  data/backtest_summary.json    ({SUMMARY.stat().st_size/1024:.1f} KB)")
-    print(f"  reports/per_sample.csv         ({(REPORTS / 'per_sample.csv').stat().st_size/1024/1024:.2f} MB)")
     print(f"  reports/symbol_stats.csv       ({(REPORTS / 'symbol_stats.csv').stat().st_size/1024:.1f} KB)")
     print(f"  {report_path.name}")
     return 0

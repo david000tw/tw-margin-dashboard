@@ -15,7 +15,6 @@ dry-run(預設)        印出會改的 record 數與每個對照的命中次數,
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -24,6 +23,9 @@ BASE      = Path(__file__).resolve().parent.parent
 MERGED    = BASE / "data" / "all_data_merged.json"
 FIXES     = BASE / "data" / "ocr_corrections.json"
 
+sys.path.insert(0, str(BASE))
+from pipeline import load_json, save_json   # type: ignore[import-not-found]
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -31,8 +33,8 @@ def main() -> int:
     ap.add_argument("--dry-write", help="寫到指定路徑(不動 merged)")
     args = ap.parse_args()
 
-    fixes: dict[str, str] = json.loads(FIXES.read_text(encoding="utf-8"))["ocr_to_correct"]
-    merged: list[dict] = json.loads(MERGED.read_text(encoding="utf-8"))
+    fixes: dict[str, str] = load_json(FIXES)["ocr_to_correct"]
+    merged: list[dict] = load_json(MERGED)
 
     hits: Counter[str] = Counter()
     records_changed = 0
@@ -64,9 +66,7 @@ def main() -> int:
         print(f"    {c:5d}  {k!r} → {fixes[k]!r}")
 
     if args.dry_write:
-        Path(args.dry_write).write_text(
-            json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        save_json(Path(args.dry_write), merged)
         print(f"\n[dry-write] 寫入 {args.dry_write}")
         return 0
 
@@ -74,10 +74,7 @@ def main() -> int:
         print("\n[dry-run] 未寫檔。--write 真正寫入 merged + 重建年份檔。")
         return 0
 
-    # 真正寫
-    MERGED.write_text(
-        json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    save_json(MERGED, merged)
     print(f"\n[ok] 寫入 {MERGED}")
 
     # 重建年份檔(透過 pipeline.regen_years)

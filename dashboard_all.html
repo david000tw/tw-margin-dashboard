@@ -448,15 +448,14 @@ function filterTable(){
   const q = document.getElementById('search-input').value.trim().toLowerCase();
   const yr = document.getElementById('year-sel').value;
   const al = document.getElementById('alert-sel').value;
-  // 如果有 query,擴展為 alias-aware 候選集 (用「聯詠」也能找到「聯泳」record)
   const targets = q ? expandSearchQuery(q) : [];
   filtered = [...RAW].reverse().filter(r=>{
     if(yr && !r.date.startsWith(yr)) return false;
     if(al==='1' && !isAlert(r)) return false;
     if(al==='0' && isAlert(r)) return false;
     if(q){
-      const haystack = [r.bull||'', r.bear||'', r.top5_margin_reduce_inst_buy||''].join(',').toLowerCase();
-      if(!targets.some(t => haystack.includes(t))) return false;
+      const m = recordRoleMatch(r, targets, '');
+      if(!(m.bull || m.bear || m.top5)) return false;
     }
     return true;
   });
@@ -599,10 +598,12 @@ function buildAnalytics(){
 }
 
 // ─── Backtest (從 backtest_summary.json 讀預先算好的結果) ────
-let backtestBuilt = false;
+// BT_SUMMARY 同時編碼「是否已載入」(null = 未載) 與「資料」,不再需要 backtestBuilt flag。
+// BT_SIDE / BT_TOP_SIDE 是當前選中的 side,由 .btn-sm.active class 鏡射 — 保留變數
+// 是因為 chart re-render 函式直接讀,DOM 查詢成本不必要。
 let BT_SUMMARY = null;
-let BT_SIDE = 'bull';     // 圖 1 顯示哪一 side
-let BT_TOP_SIDE = 'bull'; // top20 表顯示哪一 side
+let BT_SIDE = 'bull';
+let BT_TOP_SIDE = 'bull';
 let excessChartInst = null;
 let decayChartInst  = null;
 
@@ -610,12 +611,11 @@ const SIDE_LABEL = { bull: 'Bull (法人買)', bear: 'Bear (借券加)', top5: '
 const SIDE_COLOR = { bull: '#51cf66', bear: '#ff6b6b', top5: '#74c0fc' };
 
 async function ensureBacktest(){
-  if(backtestBuilt) return;
+  if(BT_SUMMARY) return;
   const status = document.getElementById('backtestStatus');
   status.textContent = '載入 backtest summary...';
   try{
     BT_SUMMARY = await fetch('./data/backtest_summary.json',{cache:'no-cache'}).then(r=>r.json());
-    backtestBuilt = true;
     status.style.display = 'none';
     document.getElementById('backtestMeta').style.display = '';
     document.getElementById('backtestPresetBar').style.display = '';
@@ -775,22 +775,30 @@ function expandSearchQuery(q){
   return [...targets];
 }
 
+// 共用 helper:檢查單一字串是否含任一 target;與檢查整筆 record 對 role-篩選後字段。
+function matchesQuery(text, targets){
+  const t = (text || '').toLowerCase();
+  return targets.some(x => t.includes(x));
+}
+
+function recordRoleMatch(r, targets, role){
+  return {
+    bull: (!role || role==='bull') && matchesQuery(r.bull, targets),
+    bear: (!role || role==='bear') && matchesQuery(r.bear, targets),
+    top5: (!role || role==='top5') && matchesQuery(r.top5_margin_reduce_inst_buy, targets),
+  };
+}
+
 function searchStock(){
   const q = document.getElementById('stock-input').value.trim().toLowerCase();
   const role = document.getElementById('stock-role-sel').value;
   if(!q){ document.getElementById('stock-tbl-body').innerHTML=''; document.getElementById('stock-info').textContent=''; return; }
 
   const targets = expandSearchQuery(q);
-  const matchAny = (s) => {
-    const sl = (s || '').toLowerCase();
-    return targets.some(t => sl.includes(t));
-  };
-
   const results = [];
   RAW.forEach(r=>{
-    const inBull = !role||role==='bull' ? matchAny(r.bull) : false;
-    const inBear = !role||role==='bear' ? matchAny(r.bear) : false;
-    const inTop5 = !role||role==='top5' ? matchAny(r.top5_margin_reduce_inst_buy) : false;
+    const m = recordRoleMatch(r, targets, role);
+    const {bull: inBull, bear: inBear, top5: inTop5} = m;
     const roles = [];
     if(inBull) roles.push('<span class="tag bull">Bull</span>');
     if(inBear) roles.push('<span class="tag bear">Bear</span>');
