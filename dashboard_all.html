@@ -448,13 +448,15 @@ function filterTable(){
   const q = document.getElementById('search-input').value.trim().toLowerCase();
   const yr = document.getElementById('year-sel').value;
   const al = document.getElementById('alert-sel').value;
+  // 如果有 query,擴展為 alias-aware 候選集 (用「聯詠」也能找到「聯泳」record)
+  const targets = q ? expandSearchQuery(q) : [];
   filtered = [...RAW].reverse().filter(r=>{
     if(yr && !r.date.startsWith(yr)) return false;
     if(al==='1' && !isAlert(r)) return false;
     if(al==='0' && isAlert(r)) return false;
     if(q){
       const haystack = [r.bull||'', r.bear||'', r.top5_margin_reduce_inst_buy||''].join(',').toLowerCase();
-      if(!haystack.includes(q)) return false;
+      if(!targets.some(t => haystack.includes(t))) return false;
     }
     return true;
   });
@@ -758,16 +760,37 @@ function renderTopSymbols(presetName){
 }
 
 // ─── Stock Search ──────────────────────────────────────────
+// 把使用者輸入的 query 透過 SYMBOL_DISPLAY 反查擴展:
+// 例如輸「聯詠」→ 找到 display 含「聯詠」的所有 record symbol(包括 OCR 錯字「聯泳」),
+// 都加進候選集,再對 record 做 substring match。輸「3034」也走同樣邏輯。
+function expandSearchQuery(q){
+  const ql = q.toLowerCase();
+  const targets = new Set([ql]);
+  for(const [sym, disp] of Object.entries(SYMBOL_DISPLAY)){
+    const ds = (disp || '').toLowerCase();
+    if(ds.includes(ql) || sym.toLowerCase().includes(ql)){
+      targets.add(sym.toLowerCase());
+    }
+  }
+  return [...targets];
+}
+
 function searchStock(){
   const q = document.getElementById('stock-input').value.trim().toLowerCase();
   const role = document.getElementById('stock-role-sel').value;
   if(!q){ document.getElementById('stock-tbl-body').innerHTML=''; document.getElementById('stock-info').textContent=''; return; }
 
+  const targets = expandSearchQuery(q);
+  const matchAny = (s) => {
+    const sl = (s || '').toLowerCase();
+    return targets.some(t => sl.includes(t));
+  };
+
   const results = [];
   RAW.forEach(r=>{
-    const inBull = !role||role==='bull' ? (r.bull||'').toLowerCase().includes(q) : false;
-    const inBear = !role||role==='bear' ? (r.bear||'').toLowerCase().includes(q) : false;
-    const inTop5 = !role||role==='top5' ? (r.top5_margin_reduce_inst_buy||'').toLowerCase().includes(q) : false;
+    const inBull = !role||role==='bull' ? matchAny(r.bull) : false;
+    const inBear = !role||role==='bear' ? matchAny(r.bear) : false;
+    const inTop5 = !role||role==='top5' ? matchAny(r.top5_margin_reduce_inst_buy) : false;
     const roles = [];
     if(inBull) roles.push('<span class="tag bull">Bull</span>');
     if(inBear) roles.push('<span class="tag bear">Bear</span>');

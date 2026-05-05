@@ -155,7 +155,27 @@ git status --porcelain data/ dashboard_all.html
 
 ## 6. 組 record
 
-產生 `tmp_record.json`（repo root 暫存檔）：
+### 6a. 套用 OCR 錯字對照（必做）
+
+讀 `data/ocr_corrections.json` 的 `ocr_to_correct` dict。對 OCR 解出的 bull / bear / top5 三個字串，**逐個 symbol 做 lookup-and-replace**：
+
+```python
+import json
+with open('data/ocr_corrections.json', encoding='utf-8') as f:
+    fixes = json.load(f)['ocr_to_correct']
+
+def apply_fixes(s: str) -> str:
+    return ','.join(fixes.get(x.strip(), x.strip()) for x in s.split(',') if x.strip())
+
+bull = apply_fixes(bull_raw)
+bear = apply_fixes(bear_raw)
+top5 = apply_fixes(top5_raw)
+```
+
+**為什麼必做**：歷史上發現 ~25 種高頻 OCR 錯字（如「聯泳→聯詠」「光豐金→永豐金」），不修的話 record 寫進去就是錯字、後續 dashboard 顯示「(待補)」、個股搜尋找不到。
+
+### 6b. 產生 `tmp_record.json`
+
 ```json
 {
   "date": "YYYY-MM-DD",
@@ -166,6 +186,12 @@ git status --porcelain data/ dashboard_all.html
 }
 ```
 **不要**寫 `rate_alert` 欄位。`rate` 必須 `int`。
+
+### 6c. 發現新 OCR 錯字時
+
+如果你 OCR 出的某個股名 **不在** `ocr_corrections.json` 但你**有把握**它是某檔常見股票的 OCR 錯字（字形相近且唯一對應），追加進 `ocr_corrections.json` 並在最終報告（Step 9）列出。下次抓取自動套用。
+
+不確定的不要加 — 寧可讓 record 寫原 OCR 結果由 dashboard 顯示「(待補)」，不要寫錯誤對應。
 
 ## 7. 寫入、驗證（非 dry-run 才跑）
 

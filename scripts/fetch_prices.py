@@ -263,6 +263,26 @@ def main():
     )
     log(f"寫入 {FETCH_LOG}")
 
+    # === Step 6: 自動 chain lookup_aliases + symbol_resolve ===
+    # fetch_log 變更後 unknown_names 可能有新項目;讓 lookup_aliases 自動推導
+    # 寫入 stock_aliases.json,再重建 symbol_index.json,以便 dashboard 立即看到 enrich
+    log("\n=== Step 6: 自動更新 stock_aliases + symbol_index ===")
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from lookup_aliases import main as run_lookup  # type: ignore[import-not-found]
+        from symbol_resolve import write_index  # type: ignore[import-not-found]
+        # lookup_aliases --write
+        old_argv = sys.argv
+        sys.argv = ["lookup_aliases.py", "--write"]
+        try:
+            run_lookup()
+        finally:
+            sys.argv = old_argv
+        write_index()
+        log("[ok] stock_aliases.json + symbol_index.json 已更新")
+    except Exception as e:
+        log(f"[WARN] 自動 chain 失敗(不影響主流程): {e}")
+
 
 if __name__ == "__main__":
     main()
