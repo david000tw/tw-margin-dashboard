@@ -3,9 +3,15 @@ Fetch daily close prices for all stocks that appear in data/all_data_merged.json
 (bull / bear / top5_margin_reduce_inst_buy), so the dashboard can compute
 post-event returns and correlations.
 
-Output:
+Output (compact format the dashboard reads directly):
   data/stock_map.json       { "台積電": {"code": "2330", "market": "TW"}, ... }
-  data/stock_prices.json    { "2330.TW": {"2021-05-24": 600.0, ...}, ... }
+  data/stock_prices.json    {
+                              "dates":  ["2021-01-04", "2021-01-05", ...],
+                              "prices": {
+                                "2330.TW": {"start": 0,   "csv": "600.0,602.5,..."},
+                                "2454.TW": {"start": 120, "csv": "880.0,,885.0,..."}
+                              }
+                            }
   data/stock_fetch_log.json { "ok": [...], "unknown_names": [...], "no_price": [...] }
 
 Usage (from repo root):
@@ -155,7 +161,9 @@ def download_prices(tickers, start=START_DATE):
                         }
                     else:
                         no_price.append(t)
-                except (KeyError, Exception):
+                except (KeyError, AttributeError):
+                    # KeyError: ticker 不在 multi-ticker DataFrame
+                    # AttributeError: 該 ticker 對應的不是 Series 而是 ndarray(yfinance 偶發)
                     no_price.append(t)
             time.sleep(0.5)
         except Exception as e:
@@ -165,12 +173,46 @@ def download_prices(tickers, start=START_DATE):
     return prices, no_price
 
 
+# ── 壓縮成 dashboard 讀的格式 ───────────────────────────────
+
+def to_compact(prices: dict) -> dict:
+    """
+    Input :  { ticker: { "YYYY-MM-DD": close, ... } }
+    Output:  { dates:[...], prices:{ ticker:{start:int, csv:"p1,p2,..."} } }
+
+    csv 中缺值用空字串("")表示,dashboard 的 readPrice() 會把空字串視為 null。
+    每個 ticker 只儲 start..last 的連續區間,不存末尾的空格以節省空間。
+    """
+    all_dates = set()
+    for tdata in prices.values():
+        all_dates.update(tdata.keys())
+    dates_sorted = sorted(all_dates)
+    date_to_idx = {d: i for i, d in enumerate(dates_sorted)}
+
+    out_prices = {}
+    for ticker, tdata in prices.items():
+        if not tdata:
+            continue
+        idxs = sorted(date_to_idx[d] for d in tdata)
+        start = idxs[0]
+        end = idxs[-1]
+        cells = []
+        for i in range(start, end + 1):
+            d = dates_sorted[i]
+            v = tdata.get(d)
+            # download_prices 已經 round(.., 2);維持與既有格式一致(整數會帶 ".0")
+            cells.append("" if v is None else str(v))
+        out_prices[ticker] = {"start": start, "csv": ",".join(cells)}
+
+    return {"dates": dates_sorted, "prices": out_prices}
+
+
 # ── 主程式 ─────────────────────────────────────────────────
 
 def main():
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         try:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
         except Exception:
             pass
 
@@ -201,13 +243,14 @@ def main():
     log(f"  成功抓到價格的 ticker : {len(prices)}")
     log(f"  yfinance 無回應的 ticker: {len(no_price)}")
 
-    log("\n=== Step 5: 寫入 data/stock_prices.json ===")
+    log("\n=== Step 5: 壓縮並寫入 data/stock_prices.json ===")
+    compact = to_compact(prices)
     PRICES_FILE.write_text(
-        json.dumps(prices, ensure_ascii=False, separators=(",", ":")),
+        json.dumps(compact, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
     size_mb = PRICES_FILE.stat().st_size / 1024 / 1024
-    log(f"寫入 {PRICES_FILE}: {size_mb:.2f} MB")
+    log(f"寫入 {PRICES_FILE}: {size_mb:.2f} MB ({len(compact['dates'])} dates × {len(compact['prices'])} tickers)")
 
     fetch_log = {
         "ok_tickers": sorted(prices.keys()),

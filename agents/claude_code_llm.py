@@ -7,13 +7,16 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any
 
 from crewai.llms.base_llm import BaseLLM
 
 
 class ClaudeCodeLLM(BaseLLM):
     llm_type: str = "claude_code"
+    # BaseLLM 是 pydantic-style;這裡用 object.__setattr__ 強塞,
+    # 在 class body 標型別讓 pyright/IDE 認得屬性。
+    _max_turns: int
+    _timeout: int
 
     def __init__(
         self,

@@ -27,7 +27,7 @@ TWII = DATA / "twii_all.json"
 def main() -> int:
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         try:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
         except Exception:
             pass
 

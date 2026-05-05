@@ -13,7 +13,7 @@ argument-hint: "(空=補齊) | YYYY-MM-DD(單日) | --dry-run | --dry-run YYYY-M
 
 1. `CLAUDE.md` — 整體架構、資料流向、schema 規則
 2. `scraper_guide.md` — **OCR 解讀規則與股名規範的唯一事實來源**（本檔不重複這些規則）
-3. `pipeline.py` — 確認 `validate_record`、`append`、`check`、`rebuild` 介面
+3. `pipeline.py` — 確認 `validate_record`、`append`、`check` 介面
 
 ---
 
@@ -167,17 +167,16 @@ git status --porcelain data/ dashboard_all.html
 ```
 **不要**寫 `rate_alert` 欄位。`rate` 必須 `int`。
 
-## 7. 寫入、驗證、rebuild（非 dry-run 才跑）
+## 7. 寫入、驗證（非 dry-run 才跑）
 
 ```bash
 python pipeline.py append tmp_record.json
 python pipeline.py check
-python pipeline.py rebuild
 rm tmp_record.json
 ```
 任一步失敗 → rollback 並停止整批：
 ```bash
-git checkout -- data/ dashboard_all.html
+git checkout -- data/
 rm -f tmp_record.json
 ```
 
@@ -186,7 +185,7 @@ rm -f tmp_record.json
 ## 8. Commit + push（非 dry-run 才跑）
 
 ```bash
-git add data/ dashboard_all.html
+git add data/
 git commit -m "data: YYYY-MM-DD (rate=NNN)"
 git push
 ```

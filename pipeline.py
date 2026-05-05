@@ -2,7 +2,10 @@
 台股借券融資 每日資料更新 Pipeline
 ====================================
 
-用途：每日新增一筆 Scantrader 分析結果，同步更新所有資料檔與 Dashboard。
+用途：每日新增一筆 Scantrader 分析結果,寫入 merged 檔,同步重建年份檔。
+
+資料流:merged 是 single source of truth(dashboard 讀這份)。
+       年份檔(stock_data_YYYY.json)由 merged 派生,作為 commit diff 較小的備份。
 
 使用方式：
   python pipeline.py append <json_file>          從 JSON 檔讀取一筆 record
@@ -11,7 +14,7 @@
                             --bull "台積電,聯發科" \\
                             --bear "長榮,陽明" \\
                             --top5 "台積電,富邦金,玉山金,中信金,國泰金"
-  python pipeline.py rebuild                     更新 dashboard_all.html header
+  python pipeline.py regen-years                 從 merged 重建所有年份檔
   python pipeline.py check                       驗證資料完整性
   python pipeline.py status                      顯示目前資料概況
   python pipeline.py dates                       列出所有已有日期
@@ -33,7 +36,7 @@ from pathlib import Path
 # Windows 主控台(cp950)無法顯示 emoji,強制改 utf-8
 if hasattr(sys.stdout, "reconfigure"):
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
     except Exception:
         pass
 
@@ -41,7 +44,6 @@ BASE   = Path(__file__).parent
 DATA   = BASE / "data"
 MERGED = DATA / "all_data_merged.json"
 TWII   = DATA / "twii_all.json"
-DASH   = BASE / "dashboard_all.html"
 
 RATE_ALERT_THRESHOLD = 170
 REQUIRED_FIELDS = ("date", "bull", "bear", "rate", "top5_margin_reduce_inst_buy")
@@ -131,86 +133,66 @@ def validate_record(r: dict) -> None:
         )
 
 
+# ── 從 merged 派生年份檔 ─────────────────────────────────────
+
+def _build_year_data(year: str, year_records: list) -> dict:
+    return {
+        "year": int(year),
+        "trading_days": len(year_records),
+        "data": sorted(year_records, key=lambda x: x["date"]),
+    }
+
+
+def _regen_year_file(year: str, merged: list) -> Path:
+    """從 merged 重建單一年份檔;回傳檔案 Path。"""
+    year_records = [r for r in merged if r["date"].startswith(year + "-")]
+    yfile = year_file(year)
+    save_json(yfile, _build_year_data(year, year_records))
+    return yfile
+
+
 # ── 新增一筆資料 ─────────────────────────────────────────────
 
 def append_record(record: dict):
-    """先在記憶體組好兩個檔的最終內容,再依序 atomic write。
+    """寫入 merged 後,從 merged 重建該年份檔。
 
-    若第一個 save_json 已成功、第二個失敗(磁碟問題),下次跑 `pipeline.py check`
-    會偵測到 year/merged 不同步並明確報錯。
+    merged 是 single source of truth;year 檔僅為派生備份(commit diff 較小)。
     """
     validate_record(record)
     d    = record["date"]
     year = d[:4]
 
-    # Step 1:準備 year 檔的新內容
-    yfile = year_file(year)
-    if yfile.exists():
-        ydata = load_json(yfile)
-    else:
-        ydata = {"year": int(year), "trading_days": 0, "data": []}
-    year_existing = {r["date"] for r in ydata["data"]}
-
-    # Step 2:準備 merged 的新內容
     merged = load_json(MERGED) if MERGED.exists() else []
-    merged_existing = {r["date"] for r in merged}
-
-    already_year   = d in year_existing
-    already_merged = d in merged_existing
-
-    if already_year and already_merged:
-        print(f"[skip] {d} 已存在於兩個檔案")
+    if any(r["date"] == d for r in merged):
+        print(f"[skip] {d} 已存在於 merged")
         return
 
-    if not already_year:
-        ydata["data"].append(record)
-        ydata["data"].sort(key=lambda x: x["date"])
-        ydata["trading_days"] = len(ydata["data"])
+    merged.append(record)
+    merged.sort(key=lambda x: x["date"])
+    save_json(MERGED, merged)
+    print(f"[ok] 寫入 all_data_merged.json (共 {len(merged)} 筆)")
 
-    if not already_merged:
-        merged.append(record)
-        merged.sort(key=lambda x: x["date"])
+    yfile = _regen_year_file(year, merged)
+    year_count = sum(1 for r in merged if r["date"].startswith(year + "-"))
+    print(f"[ok] 重建 {yfile.name} (共 {year_count} 筆)")
 
-    # Step 3:兩個都寫入。先寫 merged(dashboard 讀這份),
-    # 再寫 year(純備份);若 year 寫入失敗,下次 check 會明確報不同步,
-    # 不會讓 dashboard 顯示異常。
-    if not already_merged:
-        save_json(MERGED, merged)
-        print(f"[ok] 寫入 all_data_merged.json (共 {len(merged)} 筆)")
-    if not already_year:
-        save_json(yfile, ydata)
-        print(f"[ok] 寫入 {yfile.name} (共 {ydata['trading_days']} 筆)")
-
-    print("\n完成。建議接著跑 'python pipeline.py check' 驗證後再 rebuild。")
+    print("\n完成。建議接著跑 'python pipeline.py check' 驗證。")
 
 
-# ── 重建 Dashboard ───────────────────────────────────────────
+# ── 從 merged 重建所有年份檔 ─────────────────────────────────
 
-def rebuild_dashboard():
-    """更新 dashboard_all.html header 的日期範圍與筆數。
-
-    資料由 fetch('./data/*.json') 動態載入,rebuild 只同步 header fallback。
-    """
-    if not DASH.exists():
-        raise PipelineError("找不到 dashboard_all.html")
-
+def regen_years():
+    if not MERGED.exists():
+        raise PipelineError(f"找不到 {MERGED}")
     merged = load_json(MERGED)
     if not merged:
-        raise PipelineError("all_data_merged.json 為空,無法 rebuild header")
-
-    dates = sorted(r["date"] for r in merged)
-    content = DASH.read_text(encoding="utf-8")
-
-    sub_re = re.compile(r'(<div class="sub">)[^<]*(</div>)')
-    if not sub_re.search(content):
-        raise PipelineError(
-            'dashboard_all.html 找不到 header 標記 <div class="sub">...</div>'
-        )
-    new_sub = f"{dates[0]} ～ {dates[-1]} &nbsp;·&nbsp; 共 {len(merged):,} 個交易日"
-    content = sub_re.sub(rf'\g<1>{new_sub}\g<2>', content, count=1)
-
-    _atomic_write_text(DASH, content)
-    print(f"[ok] Dashboard header 已更新 ({len(merged)} 筆, {dates[0]} ~ {dates[-1]})")
+        raise PipelineError("merged 為空,無年份檔可重建")
+    years = sorted({r["date"][:4] for r in merged})
+    for y in years:
+        yfile = _regen_year_file(y, merged)
+        cnt = sum(1 for r in merged if r["date"].startswith(y + "-"))
+        print(f"[ok] {yfile.name}: {cnt} 筆")
+    print(f"\n完成。共 {len(years)} 個年份檔。")
 
 
 # ── 檢查 ────────────────────────────────────────────────────
@@ -237,24 +219,23 @@ def check():
         dup = {d for d in dates if dates.count(d) > 1}
         errors.append(f"[merged] 重複日期: {sorted(dup)}")
 
-    # 3. year 檔筆數總和 == merged
-    year_total = 0
+    # 3. year 檔(派生)是否與 merged 一致;不一致 → warning,提示 regen-years
     year_dates = set()
+    year_struct_bad = False
     for yfile in sorted(DATA.glob("stock_data_*.json")):
         y = load_json(yfile)
         if not (isinstance(y, dict) and "data" in y):
             errors.append(f"[{yfile.name}] 結構異常(缺 data 欄位)")
+            year_struct_bad = True
             continue
-        year_total += len(y["data"])
         year_dates.update(r["date"] for r in y["data"])
-    if year_total != len(merged):
-        errors.append(f"[sync] year 檔總和 {year_total} != merged {len(merged)}")
-    missing_in_year = set(dates) - year_dates
-    extra_in_year   = year_dates - set(dates)
-    if missing_in_year:
-        errors.append(f"[sync] merged 有但 year 檔缺: {sorted(missing_in_year)[:10]}")
-    if extra_in_year:
-        errors.append(f"[sync] year 檔有但 merged 缺: {sorted(extra_in_year)[:10]}")
+    if not year_struct_bad:
+        diff = year_dates ^ set(dates)
+        if diff:
+            warnings.append(
+                f"[derived] year 檔與 merged 不一致 ({len(diff)} 個日期差異);"
+                f"跑 'python pipeline.py regen-years' 重建"
+            )
 
     # 4. TWII 缺漏(warning)
     if TWII.exists():
@@ -373,8 +354,8 @@ def main(argv=None):
             print(__doc__); return 1
         record = _parse_append(args)
         append_record(record)
-    elif cmd == "rebuild":
-        rebuild_dashboard()
+    elif cmd == "regen-years":
+        regen_years()
     elif cmd == "check":
         check()
     elif cmd == "status":
