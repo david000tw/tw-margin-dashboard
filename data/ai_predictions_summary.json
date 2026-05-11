@@ -1,0 +1,2295 @@
+{
+  "generated_at": "2026-05-07T00:45:47",
+  "n_predictions": 69,
+  "n_failed": 1,
+  "n_verified": 69,
+  "first_date": "2021-08-31",
+  "last_date": "2021-10-19",
+  "by_horizon": {
+    "5": {
+      "n": 69,
+      "long_avg_excess": -0.005857,
+      "short_avg_excess": -0.003876,
+      "long_winrate": 0.4493,
+      "short_winrate": 0.6087
+    },
+    "10": {
+      "n": 69,
+      "long_avg_excess": -0.003355,
+      "short_avg_excess": -0.004747,
+      "long_winrate": 0.5362,
+      "short_winrate": 0.4928
+    },
+    "20": {
+      "n": 69,
+      "long_avg_excess": 0.011838,
+      "short_avg_excess": -0.005683,
+      "long_winrate": 0.6522,
+      "short_winrate": 0.6087
+    }
+  },
+  "rolling_winrate_30": [
+    {
+      "date": "2021-08-17",
+      "long": 0.7667,
+      "short": 0.7
+    },
+    {
+      "date": "2021-08-18",
+      "long": 0.7667,
+      "short": 0.7333
+    },
+    {
+      "date": "2021-08-19",
+      "long": 0.8,
+      "short": 0.7667
+    },
+    {
+      "date": "2021-08-20",
+      "long": 0.8,
+      "short": 0.7667
+    },
+    {
+      "date": "2021-08-23",
+      "long": 0.8,
+      "short": 0.8
+    },
+    {
+      "date": "2021-08-24",
+      "long": 0.8333,
+      "short": 0.8333
+    },
+    {
+      "date": "2021-08-25",
+      "long": 0.8333,
+      "short": 0.8333
+    },
+    {
+      "date": "2021-08-26",
+      "long": 0.8333,
+      "short": 0.8667
+    },
+    {
+      "date": "2021-08-27",
+      "long": 0.8667,
+      "short": 0.8333
+    },
+    {
+      "date": "2021-08-30",
+      "long": 0.8667,
+      "short": 0.8333
+    },
+    {
+      "date": "2021-08-31",
+      "long": 0.8667,
+      "short": 0.8
+    },
+    {
+      "date": "2021-09-02",
+      "long": 0.8333,
+      "short": 0.8
+    },
+    {
+      "date": "2021-09-03",
+      "long": 0.8667,
+      "short": 0.7667
+    },
+    {
+      "date": "2021-09-06",
+      "long": 0.8667,
+      "short": 0.7333
+    },
+    {
+      "date": "2021-09-08",
+      "long": 0.8333,
+      "short": 0.7
+    },
+    {
+      "date": "2021-09-09",
+      "long": 0.8333,
+      "short": 0.6667
+    },
+    {
+      "date": "2021-09-10",
+      "long": 0.8333,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-13",
+      "long": 0.8,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-14",
+      "long": 0.7667,
+      "short": 0.6
+    },
+    {
+      "date": "2021-09-16",
+      "long": 0.7333,
+      "short": 0.6
+    },
+    {
+      "date": "2021-09-17",
+      "long": 0.7333,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-22",
+      "long": 0.7,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-23",
+      "long": 0.7333,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-24",
+      "long": 0.7333,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-27",
+      "long": 0.7,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-28",
+      "long": 0.6667,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-29",
+      "long": 0.6333,
+      "short": 0.6333
+    },
+    {
+      "date": "2021-09-30",
+      "long": 0.6,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-01",
+      "long": 0.5667,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-04",
+      "long": 0.5333,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-05",
+      "long": 0.5,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-06",
+      "long": 0.5,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-07",
+      "long": 0.5,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-08",
+      "long": 0.5333,
+      "short": 0.6
+    },
+    {
+      "date": "2021-10-12",
+      "long": 0.5333,
+      "short": 0.5667
+    },
+    {
+      "date": "2021-10-13",
+      "long": 0.5333,
+      "short": 0.5333
+    },
+    {
+      "date": "2021-10-14",
+      "long": 0.5,
+      "short": 0.5333
+    },
+    {
+      "date": "2021-10-15",
+      "long": 0.5,
+      "short": 0.5
+    },
+    {
+      "date": "2021-10-18",
+      "long": 0.5,
+      "short": 0.5
+    },
+    {
+      "date": "2021-10-19",
+      "long": 0.5,
+      "short": 0.5
+    }
+  ],
+  "rolling_winrate_90": [],
+  "decay": {
+    "all": {
+      "long_avg_excess": 0.011838,
+      "short_avg_excess": -0.005683
+    },
+    "recent_90": {
+      "long_avg_excess": 0.0,
+      "short_avg_excess": 0.0
+    },
+    "recent_30": {
+      "long_avg_excess": 0.0,
+      "short_avg_excess": 0.0
+    }
+  },
+  "vs_scantrader_baseline": {
+    "ai_long_t20_avg": 0.011838,
+    "scantrader_top5_test_avg": 0.095034,
+    "diff": -0.083196
+  },
+  "recent_30_predictions": [
+    {
+      "date": "2021-08-31",
+      "long": [
+        {
+          "symbol": "2884",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.62
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.73
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.66
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2353",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2601",
+          "conviction": 0.54
+        }
+      ],
+      "rationale": "金融股(2884/2882/2891/2887)連續10+日出現法人買超清單,rate由148低點回升至159顯示籌碼改善,2330同時在bull清單與top5融資減+法人買(8/30)。過去lose反思:2002/2601等工業股在rate低迷期多為噪訊,故此次long集中有持續籌碼支撐的金融+龍頭。空方2409全月30天均在bear清單無翻多訊號,2834/3481/2353/2601近期be",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.002847,
+          "short_avg_excess": -0.009591,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.008262,
+          "short_avg_excess": -0.012226,
+          "long_win": true,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": 0.014335,
+          "short_avg_excess": 0.022248,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-02",
+      "long": [
+        {
+          "symbol": "2891",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "萬海",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.75
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "3035",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2605",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "金控族群(2891/2884/2882)連續2週高頻出現bull清單且法人持續買超，近期rate維持155+顯示資金輪動防禦板塊；2303聯電在半導體缺貨主軸下籌碼持續轉強，萬海近兩日入頂5(融資減+法人買)。反思lose：7/7多頭選2601/2606等無明確籌碼動能個股致虧，改以bull清單出現頻率與頂5為主篩條件。空頭2409/3481面板雙雄連日位居bear清單前位，2834籌碼偏空且持續",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.007987,
+          "short_avg_excess": -0.024719,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.007777,
+          "short_avg_excess": 0.0035,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.013711,
+          "short_avg_excess": 0.036206,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-03",
+      "long": [
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "3035",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2605",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多方：2303/2882/2884/2891/2888 近10日持續出現在bull名單，金融族群（2882/2884/2891）融資減少且法人持續買進，籌碼乾淨；2303為外資連續看多標的。空方：2409連30天高頻出現在bear名單，籌碼持續惡化；3481近期從bull轉入bear，反轉訊號強；2834/3035/2605近5日持續出現bear且未見反彈。過去lose case共同點：long側",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.004667,
+          "short_avg_excess": 0.008933,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.003695,
+          "short_avg_excess": 0.019308,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.00689,
+          "short_avg_excess": 0.067574,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-06",
+      "long": [
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "3035",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "6116",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "多方：2303/2882/2884/2891/2888 連續多日出現在 bull 欄，金融股（2882/2884/2891）近期動能持續，2303 法人持續買超，籌碼集中。空方：2409/2834 長期霸佔 bear 欄超過 30 天，籌碼結構持續偏空；3481 近期從 bull 轉 bear；3035/6116 近期新進 bear 欄。反思：過去 lose case 多因 long 選到已反轉或",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.003365,
+          "short_avg_excess": 0.028929,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.002747,
+          "short_avg_excess": 0.02269,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.014849,
+          "short_avg_excess": 0.05972,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-08",
+      "long": [
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.58
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2834",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2610",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2401",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "3035",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "多方：2303/2330連續15+天佔據bull前位，半導體法人籌碼最堅實；2882/2891金融近七日持續上榜，rate走低環境中金融股相對抗跌；2337近五日重返bull。反思7月loses：2002/2601循環股在market震盪中拖累多單表現，今日剔除。空方：2834/2887/2610連續七日以上熊訊，融資賣壓持續；2401/3035近三日新增熊訊籌碼轉差；市場整體小漲背景下空倉信心偏",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.009685,
+          "short_avg_excess": 0.040391,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.015493,
+          "short_avg_excess": 0.056216,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.012951,
+          "short_avg_excess": 0.113322,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-09",
+      "long": [
+        {
+          "symbol": "2330",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2454",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "世芯-KY",
+          "conviction": 0.52
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2834",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "6147",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "3035",
+          "conviction": 0.53
+        },
+        {
+          "symbol": "2610",
+          "conviction": 0.5
+        }
+      ],
+      "rationale": "Long 側聚焦近 30 日最高頻 bull 欄且有 top5（融資減+法人買）雙重確認者：2330 於 09-08 top5 出現、全期 bull 持續；2303 是出現頻率最高的 bull 標的；2454 同日 top5；2882 近兩週每日在 bull 欄；世芯-KY 於 09-07 top5 登場。Short 側選近三個交易日連續出現於 bear 欄的標的：2834 全程最穩定空方；288",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.029098,
+          "short_avg_excess": 0.034768,
+          "long_win": true,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": 0.046294,
+          "short_avg_excess": 0.03901,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.03601,
+          "short_avg_excess": 0.099945,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-10",
+      "long": [
+        {
+          "symbol": "2330",
+          "conviction": 0.75
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2890",
+          "conviction": 0.58
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2887",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "6147",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2610",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2618",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多方：2330連續位居Bull榜前列且09/08進top5，金融板塊2882/2880/2890近10日持續出現法人買超。3481於09/09躍升Bull榜首位動能強。空方：2887/6147/2610/2618連續出現近4日空榜，借券壓力未解；2834長達兩週維持空方。前次lose共同點為納入2601/2606等航運追高，本次刻意迴避高波動航運，改以籌碼訊號持續性較高的族群為核心。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.000752,
+          "short_avg_excess": 0.000473,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": 0.007619,
+          "short_avg_excess": 0.025354,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.017383,
+          "short_avg_excess": 0.04379,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-13",
+      "long": [
+        {
+          "symbol": "2002",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.58
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.66
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "6147",
+          "conviction": 0.52
+        },
+        {
+          "symbol": "2329",
+          "conviction": 0.5
+        }
+      ],
+      "rationale": "近30天bull榜持續出現2002、3481、2880、2330、2882，且rate從162高點回落至153-157區間後近日回升至157，顯示多頭動能尚存但趨緩。2409、2834長期霸占bear榜前列，結構性做空訊號明確。反思過去lose case：long側選入動能已衰退標的（如2601、2606）或過度集中海運（易受單一題材逆風）；short側選2027、5009等bear榜出現頻率偏低",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.013526,
+          "short_avg_excess": -0.007469,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.002036,
+          "short_avg_excess": -0.007217,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.012769,
+          "short_avg_excess": -0.020567,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-14",
+      "long": [
+        {
+          "symbol": "2002",
+          "conviction": 0.75
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "1101",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.58
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.78
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2881",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.58
+        }
+      ],
+      "rationale": "多方：2002 連續 30 天高頻出現於 bull 榜首，籌碼最穩；金融股 2880/2891/1101 近兩週持續上榜且 rate 維持 155–157 未崩；2603 長榮受融資減法人買雙重支撐。空方：2409 整段期間幾乎每日出現 bear 首位，信號最強；2303 從 8 月 bull 主力到 9 月初徹底轉 bear，機構籌碼明顯轉向；2834/2881/2317 近五日持續 bear，",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.008252,
+          "short_avg_excess": -0.000746,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.0131,
+          "short_avg_excess": 0.00783,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.050166,
+          "short_avg_excess": 0.001381,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-09-16",
+      "long": [
+        {
+          "symbol": "2002",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "同欣電",
+          "conviction": 0.58
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2317",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2881",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "6147",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "利率持續下滑（163→155），大盤弱勢（-1.42%）。反思三次lose模式：long敗在選人氣股（2330/2337/2601）而非最持久籌碼主角；short敗在反覆空2409/2834但這兩檔有強接手。今日long改以近30天幾乎每日出現於bull榜的2002/2882/2891/2880為核心，加法人買+融資減雙確認的同欣電。Short放棄2409，轉換近期新進熊榜且尚未被市場定價的231",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.021164,
+          "short_avg_excess": -0.002585,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.005902,
+          "short_avg_excess": 0.002127,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.002971,
+          "short_avg_excess": -0.022013,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-17",
+      "long": [
+        {
+          "symbol": "力旺",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2882",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "聯發科",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.56
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2881",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "費率從163下滑至154、指數-1.41%，整體偏弱。多方：力旺/聯發科在top5法人買進獲雙重確認；2882/2880金融股連續20+日在bull欄穩守；2002籌碼持續積累但因7月兩次多單虧損降低信心。空方：2303最強訊號——長達數週bull突然全轉bear，動能反轉明確；2317/2881/2337近期連續出現bear欄；2409雖bear紀錄最密但7月連做連敗，故給最低信心。回避2834",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.016519,
+          "short_avg_excess": 0.00465,
+          "long_win": true,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": 0.022721,
+          "short_avg_excess": 0.003866,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.017934,
+          "short_avg_excess": -0.025055,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-22",
+      "long": [
+        {
+          "symbol": "2615",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.64
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.59
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "3481",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2834",
+          "conviction": 0.56
+        },
+        {
+          "symbol": "2881",
+          "conviction": 0.54
+        }
+      ],
+      "rationale": "多方：萬海(2615)、長榮(2603)於9/17再次出現top5融資減+法人買，航運籌碼持續乾淨，且過去lose case顯示做多需選結構性強且有法人實際買盤支撐的標的；中信金(2891)、華南金(2880)近三週持續居bull榜前段，外資明顯偏多金融股；中鋼(2002)bull榜連續出現且9/14曾入top5。空方：友達(2409)、群創(3481)連續七週以上佔據bear榜，面板庫存壓力未解",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.004108,
+          "short_avg_excess": 0.025033,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.058223,
+          "short_avg_excess": 0.023912,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.097724,
+          "short_avg_excess": -0.010062,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-23",
+      "long": [
+        {
+          "symbol": "1101",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2880",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2324",
+          "conviction": 0.52
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2881",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "大盤走弱(-2.30%)、rate 從 162 降至 153，籌碼偏空。多方選股聚焦近 5 日持續出現在 bull 欄的標的：1101、2891、2880 三者 5/5 日入榜，2883 4/5 日；2324 近三日出現且為中小型，相對不易被殺。2002 與 2888 在 9/22 翻入 bear，排除。空方聚焦近 5 日高頻出現在 bear 欄：2303、2317、2881 均 5/5 日，24",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.004651,
+          "short_avg_excess": 0.012862,
+          "long_win": true,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": 0.017202,
+          "short_avg_excess": 0.009681,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.008653,
+          "short_avg_excess": -0.011751,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-24",
+      "long": [
+        {
+          "symbol": "1101",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "1304",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "景碩",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "南電",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.78
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.57
+        }
+      ],
+      "rationale": "多方：1101/2891/1304 連續多日出現 bull 清單，籌碼持續累積；景碩、南電 09/23 入選 top5（融資減+法人買），籌碼乾淨。空方：2409 全期持續在空方最強訊號；2303 自 09/13 明確翻空未見回補；2337/2884/2317 近期一致在空方清單。反思 lose case：3481 輪動性強易失效，金融股在盤整期分化，本次避開，改聚焦籌碼方向更一致的標的。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.014153,
+          "short_avg_excess": 0.011114,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": 0.017503,
+          "short_avg_excess": 0.005609,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.014735,
+          "short_avg_excess": -0.001764,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-27",
+      "long": [
+        {
+          "symbol": "1304",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "1101",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2409",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多方：1304/1101/2891連續3日位居bull前列，為近期最強籌碼轉向訊號；2603/2609海運族群bull+top5雙確認，籌碼面具支撐。空方：2409多週持續熊訊最為穩定；2002/2303由前期強勢bull明確翻空；2337/2884近3日由bull轉bear。反思lose：8/20、8/23因持有已長期bull的金融股(2882/2885/2880)逢回檔而輸，本次避開已過熱輪動",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.062959,
+          "short_avg_excess": 0.001603,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.083627,
+          "short_avg_excess": -0.012965,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.118988,
+          "short_avg_excess": -0.018541,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-28",
+      "long": [
+        {
+          "symbol": "2454",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "聯詠",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "創惟",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "潤泰全",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2002",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.57
+        }
+      ],
+      "rationale": "09-27 top5 同時出現聯發科/聯詠/創惟/潤泰全四檔機構買訊，聯發科當日並進入 bull list，雙重印證；陽明連續五日在 bull list 且 09-24 曾入 top5，航運動能延續。空方取 2002/2303/2409/2337/2884 四日連續 bear，外資借券放空動能未見收斂。反思 lose：3481/2885/2882 長期滯留 bull 易盤整，本次 long 改以新",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.070421,
+          "short_avg_excess": 0.013436,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.106613,
+          "short_avg_excess": -0.026884,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.041832,
+          "short_avg_excess": -0.012044,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-29",
+      "long": [
+        {
+          "symbol": "1304",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "奇鋐",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2618",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2884",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.58
+        }
+      ],
+      "rationale": "Long: 1304/1305/2356/2618連續4-5日持續出現bull list，籌碼持續累積；奇鋐近兩週兩度登頂top5（融資減+法人買），機構承接信號明確。Short: 2303/2002由前期強勢多頭翻轉為連續7日空頭，換手分配訊號顯著；2409為長期空方主力；2884/2888近期熱錢持續退場。依歷史Slose規律排除2330做空（龍頭易反彈）及3481做多（多次Llose後）。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.012399,
+          "short_avg_excess": 0.003119,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.040804,
+          "short_avg_excess": -0.031399,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.066354,
+          "short_avg_excess": -0.017409,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-09-30",
+      "long": [
+        {
+          "symbol": "3481",
+          "conviction": 0.73
+        },
+        {
+          "symbol": "1304",
+          "conviction": 0.67
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2618",
+          "conviction": 0.64
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.62
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2371",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "3037",
+          "conviction": 0.57
+        }
+      ],
+      "rationale": "近3日多方動能集中在3481/1304/1305/2618/2356（連3日入選），3481兼具09-29 top5法人買（群創）。空方選3日連續在空方的2303/2002/2883/2371/3037，迴避剛從空翻多的2409及歷史做空易虧的2330。lose反思：過去空3481（仍在多）及多轉換期股虧損，本次嚴守3日同向確認。Rate 152走弱，整體低conviction。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.000699,
+          "short_avg_excess": -0.003916,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.033795,
+          "short_avg_excess": -0.014725,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.058403,
+          "short_avg_excess": 0.061536,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-01",
+      "long": [
+        {
+          "symbol": "2618",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "1304",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "矽創",
+          "conviction": 0.67
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2610",
+          "conviction": 0.63
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2371",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "1904",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多方：2618/1304/1305/2610連續4日穩居法人看多前段；矽創連兩日入top5（融資減+法人買）為強增持訊號。空方：2303/2371/2317持續10+日在看空榜，2303完成多轉空確認，1904/2603近3日連入榜。反思lose案例：08-25~08-31空方輸在做空2330等大型權重股，本次改選中型持續看空標的，避開指數權重易反彈風險。Rate=154中性無過熱。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.005212,
+          "short_avg_excess": -0.016999,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.03371,
+          "short_avg_excess": -0.029611,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.031097,
+          "short_avg_excess": -0.052619,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-04",
+      "long": [
+        {
+          "symbol": "2618",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2610",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2408",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.63
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2002",
+          "conviction": 0.73
+        },
+        {
+          "symbol": "2303",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2886",
+          "conviction": 0.6
+        }
+      ],
+      "rationale": "rate 跌至 148 月低，市場偏弱。近 5 日 bull：2618/2356/2610/2408/1305 連續出現，輪動至化工/石化/航運新位階，為 long 主軸。Bear 端：2002 連 8 日持空最穩，2303 由月初主力轉空典型，2883/2888/2886 金融籌碼持續流出。反思 lose：Aug 下旬 long 集中金融（2882/2885/2880）於高峰後失速；short ",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.01347,
+          "short_avg_excess": -0.01623,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.038796,
+          "short_avg_excess": -0.034691,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.012016,
+          "short_avg_excess": -0.046494,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-05",
+      "long": [
+        {
+          "symbol": "2618",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "1304",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2408",
+          "conviction": 0.55
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "Rate降至30日低點144，市場偏弱。Long選連續7-10日均在bull清單頂部的2618/1304/1305/2356/2408，籌碼持續支撐。過去lose反思：避開單日突入bull的新面孔（易假突破），避開連續20日以上的老多頭（易過熱）。Short選整月或近20日均在bear的2303/2002/2330/2883/2317，為法人持續空頭布局標的；避免重蹈8月底空2409等觸底反彈的教",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.02039,
+          "short_avg_excess": -0.016761,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.05639,
+          "short_avg_excess": -0.021505,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.058746,
+          "short_avg_excess": -0.036468,
+          "long_win": false,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-06",
+      "long": [
+        {
+          "symbol": "3481",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2618",
+          "conviction": 0.64
+        },
+        {
+          "symbol": "6191",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2614",
+          "conviction": 0.56
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.54
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.61
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.54
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "rate從高點157降至148，遠低於警戒170，市場氣氛偏弱。多方：3481/2618/6191/2614連續出現bull list達5日以上動能穩健；2609（陽明）出現top5（機構買+融資減），籌碼結構轉佳有軋空潛力。空方：2303/2330/2317/2883/2888連續佔據bear list逾兩週趨勢穩固。反思lose case：8月底至9月初連續Slose主因2409/3481反彈",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.0023,
+          "short_avg_excess": -0.003651,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.046636,
+          "short_avg_excess": -0.012363,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": 0.096757,
+          "short_avg_excess": -0.025391,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-07",
+      "long": [
+        {
+          "symbol": "長榮",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2618",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "陽明",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "1305",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "漢磊",
+          "conviction": 0.54
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2886",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.53
+        }
+      ],
+      "rationale": "Rate 連跌至145，市場情緒明顯偏弱。Long側：長榮與陽明連續兩日同時登頂top5（法人買+融資減），陽明更於10/06從空方列轉入多方列，貨運族群出現底部換手訊號；2618與1305持續居多方列逾10日，工業/化工板塊相對抗跌；漢磊出現單日top5新訊號值得追蹤。Short側：2888、2883、2886連續一週居空方列，金融族群法人持續賣超；2303空方列最持久，為確定性最高的空頭；23",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.047477,
+          "short_avg_excess": -0.008251,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.078286,
+          "short_avg_excess": -0.012734,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": 0.045273,
+          "short_avg_excess": -0.023774,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-08",
+      "long": [
+        {
+          "symbol": "2609",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "6116",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "1802",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.67
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.64
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.58
+        }
+      ],
+      "rationale": "近30天bear側持續出現2303/2002/2330/2883/2317，空方籌碼積累明顯。多方觀察2609/2603/1802/6116近幾日開始出現在bull名單且rate從144回升至150，動能轉強；2891雖曾在bear但近日回到bull。反思lose case：空方選到航運（萬海/陽明/長榮）因航運多頭行情而失敗，本次避開航運。多方避開前期過度擁擠的金融股（2884/2882），改選",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.050793,
+          "short_avg_excess": -0.005041,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": -0.043928,
+          "short_avg_excess": -0.013968,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": 0.068125,
+          "short_avg_excess": -0.024113,
+          "long_win": true,
+          "short_win": true
+        }
+      }
+    },
+    {
+      "date": "2021-10-12",
+      "long": [
+        {
+          "symbol": "2356",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2014",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "1802",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "1301",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.75
+        },
+        {
+          "symbol": "1440",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2883",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2317",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.6
+        }
+      ],
+      "rationale": "最近5日 bull 榜持續出現的 2356、2014、1802、1301 動能最強且無 bear 交叉，為 long 首選；2609 由10/01 bear 轉10/06–10/08 連續 bull，籌碼換手明確。Short 方面 2303、1440、2883、2317、2409 近5–6日全在 bear 榜無 bull 訊號，配合 rate 從159跌至150及 TWII 下跌2.5%，空方信心",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.022624,
+          "short_avg_excess": 0.013989,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.036065,
+          "short_avg_excess": -0.0065,
+          "long_win": false,
+          "short_win": true
+        },
+        "20": {
+          "long_avg_excess": -0.017119,
+          "short_avg_excess": 0.025269,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-13",
+      "long": [
+        {
+          "symbol": "2603",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "新唐",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.52
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "1440",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "5347",
+          "conviction": 0.55
+        },
+        {
+          "symbol": "3711",
+          "conviction": 0.52
+        }
+      ],
+      "rationale": "rate 由 159 降至 146、TWII -4.34%，熊市格局。Long 以航運(2603/2609)為核心，連續多日 bull list 且多次進 top5；新唐 10/12 top5＋bull；2356 九月底起持續 bull；2891 近兩週穩居 bull。Short 選連續 10 天以上 bear list 且未現身 top5 的 2303/2002/1440/5347/3711；S",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.011804,
+          "short_avg_excess": 0.036706,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.015598,
+          "short_avg_excess": 0.027395,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.066582,
+          "short_avg_excess": 0.047226,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-14",
+      "long": [
+        {
+          "symbol": "2603",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2615",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2356",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "3711",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "1440",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "航運三雄（2603/2609/2615）連日出現於 bull 欄並多次入選 top5，法人持續買進訊號明確；2356、2891 同樣持續 bull 無轉向跡象。空方選最穩定純 bear：2303、2409、2002 連多週無任何 bull 記錄；3711、1440 近期亦持續在 bear 欄。反思 S-lose 教訓：過去誤空 3481、2887 等仍具 bull momentum 的標的導致損失",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.047764,
+          "short_avg_excess": 0.016457,
+          "long_win": false,
+          "short_win": false
+        },
+        "10": {
+          "long_avg_excess": -0.05469,
+          "short_avg_excess": 0.028532,
+          "long_win": false,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": -0.006942,
+          "short_avg_excess": 0.057397,
+          "long_win": false,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-15",
+      "long": [
+        {
+          "symbol": "2609",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2891",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.6
+        },
+        {
+          "symbol": "2887",
+          "conviction": 0.55
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.57
+        },
+        {
+          "symbol": "3711",
+          "conviction": 0.53
+        }
+      ],
+      "rationale": "看多：2609/2603連日居牛榜且近三日均現top5法人買超，籌碼持續集中；2891/2888/2887過去10+日穩居多方名單。看空：2303/2409是30日窗最一致空方訊號；2002/2337/3711近期持續移入熊榜。修正教訓：先前連續做空3481航運股因逆勢大漲Slose，今日不放空已進入法人買超的航運族群。Rate 158→147大盤偏弱，空方可信度提升。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.028323,
+          "short_avg_excess": -0.008849,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.016784,
+          "short_avg_excess": 0.032361,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.052357,
+          "short_avg_excess": 0.062136,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-18",
+      "long": [
+        {
+          "symbol": "2356",
+          "conviction": 0.75
+        },
+        {
+          "symbol": "2609",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2603",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2376",
+          "conviction": 0.6
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.8
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.78
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "3711",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2337",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多方：2356連9日居看多前列籌碼最穩，2609連7日，2603(長榮)連6日且同期4次入選top5（法人買+融資減雙確認），2888近5日轉強，2376動能升溫。空方：2303/2409連10日全數看空最具確定性，2002緊隨，3711近7日6次，2337近5日持續。反思Slose：過去誤空已轉多的2887/2317/2618類電子股，本次空方僅留籌碼持續惡化標的，不碰訊號混淆個股。",
+      "outcome": {
+        "5": {
+          "long_avg_excess": -0.006216,
+          "short_avg_excess": -0.001043,
+          "long_win": false,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.05565,
+          "short_avg_excess": 0.026872,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.112096,
+          "short_avg_excess": 0.056983,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    },
+    {
+      "date": "2021-10-19",
+      "long": [
+        {
+          "symbol": "2603",
+          "conviction": 0.72
+        },
+        {
+          "symbol": "萬海",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "聯發科",
+          "conviction": 0.65
+        },
+        {
+          "symbol": "2888",
+          "conviction": 0.63
+        },
+        {
+          "symbol": "2330",
+          "conviction": 0.62
+        }
+      ],
+      "short": [
+        {
+          "symbol": "2303",
+          "conviction": 0.7
+        },
+        {
+          "symbol": "2409",
+          "conviction": 0.68
+        },
+        {
+          "symbol": "3711",
+          "conviction": 0.62
+        },
+        {
+          "symbol": "2002",
+          "conviction": 0.58
+        },
+        {
+          "symbol": "2449",
+          "conviction": 0.55
+        }
+      ],
+      "rationale": "多頭：2603/萬海/聯發科近10日連續出現 bull 清單且進入 top5（融資減+法人買），法人籌碼持續流入；2888 近10日連續 bull；rate 從144低點回升至150趨穩，做多環境改善。空頭：2303/2409 持續數週結構性 bear，力道一致；3711/2002 近兩日轉 bear 且加速；2449 多日 bear。教訓修正：9月 Slose 集中在短期剛轉弱的股票遭市場反彈，",
+      "outcome": {
+        "5": {
+          "long_avg_excess": 0.012744,
+          "short_avg_excess": -0.007633,
+          "long_win": true,
+          "short_win": true
+        },
+        "10": {
+          "long_avg_excess": 0.036254,
+          "short_avg_excess": 0.007249,
+          "long_win": true,
+          "short_win": false
+        },
+        "20": {
+          "long_avg_excess": 0.075942,
+          "short_avg_excess": 0.018586,
+          "long_win": true,
+          "short_win": false
+        }
+      }
+    }
+  ]
+}
