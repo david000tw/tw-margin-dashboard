@@ -9,7 +9,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_features import chip_features, price_features, past_perf   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_features import (  # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+    chip_features,
+    collect,
+    market_context,
+    past_perf,
+    price_features,
+    SymbolFeatures,
+)
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -123,7 +130,7 @@ def fx_prediction_rows():
 class TestPriceFeatures(unittest.TestCase):
     def test_window_strictly_before_d(self):
         f = price_features("2330.TW", "2024-01-15", fx_prices(),
-                            fx_twii(), sorted(fx_twii().keys()), window=5)
+                            fx_twii(), window=5)
         self.assertEqual(f["window_start"], "2024-01-08")
         self.assertEqual(f["window_end"], "2024-01-12")
         self.assertEqual(len(f["closes"]), 5)
@@ -132,13 +139,13 @@ class TestPriceFeatures(unittest.TestCase):
     def test_ma_calculations(self):
         # MA5 = (615+612+618+620+625)/5 = 618.0
         f = price_features("2330.TW", "2024-01-15", fx_prices(),
-                            fx_twii(), sorted(fx_twii().keys()), window=5)
+                            fx_twii(), window=5)
         self.assertAlmostEqual(f["ma5"], 618.0, places=2)
 
     def test_relative_vs_twii(self):
         # 2330: 615→625 = +1.626%; TWII: 17200→17290 = +0.523%; excess = +1.103%
         f = price_features("2330.TW", "2024-01-15", fx_prices(),
-                            fx_twii(), sorted(fx_twii().keys()), window=5)
+                            fx_twii(), window=5)
         self.assertAlmostEqual(f["return_window"], 0.01626, places=4)
         self.assertAlmostEqual(f["twii_return_window"], 0.00523, places=4)
         self.assertAlmostEqual(f["excess_return_window"], 0.01103, places=4)
@@ -147,13 +154,26 @@ class TestPriceFeatures(unittest.TestCase):
         # 3008.TW start=2 (csv[0] 對應 dates[2]=01-04); window 01-08~01-12
         # dates idx 4..8 → csv idx 2..6 → 2510, 2530, 2550, 2540, 2560
         f = price_features("3008.TW", "2024-01-15", fx_prices(),
-                            fx_twii(), sorted(fx_twii().keys()), window=5)
+                            fx_twii(), window=5)
         self.assertEqual(f["closes"], [2510, 2530, 2550, 2540, 2560])
 
     def test_missing_ticker_returns_none(self):
         f = price_features("9999.TW", "2024-01-15", fx_prices(),
-                            fx_twii(), sorted(fx_twii().keys()), window=5)
+                            fx_twii(), window=5)
         self.assertIsNone(f)
+
+    def test_twii_anchor_miss_returns_none_for_relative(self):
+        # 缺 TWII anchor 時:closes/ma 仍可算,但 twii_return_window /
+        # excess_return_window 設為 None(對齊 analyze_signals.twii_return 慣例,
+        # 不要靜默回傳 0.0 誤導下游)
+        twii_partial = {k: v for k, v in fx_twii().items() if k != "2024-01-08"}
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            twii_partial, window=5)
+        self.assertIsNotNone(f)
+        self.assertEqual(len(f["closes"]), 5)
+        self.assertAlmostEqual(f["return_window"], 0.01626, places=4)
+        self.assertIsNone(f["twii_return_window"])
+        self.assertIsNone(f["excess_return_window"])
 
 
 class TestPastPerf(unittest.TestCase):
@@ -183,6 +203,85 @@ class TestPastPerf(unittest.TestCase):
         p = past_perf("9999", "2024-02-15", fx_prediction_rows())
         self.assertEqual(p["long_count"], 0)
         self.assertEqual(p["short_count"], 0)
+
+
+class TestMarketContext(unittest.TestCase):
+    def test_recent_records_strictly_before_d(self):
+        ctx = market_context("2024-01-15", fx_merged(), fx_twii(), n_recent=30)
+        # 所有 record 都 < d
+        self.assertGreater(len(ctx["recent_records"]), 0)
+        for r in ctx["recent_records"]:
+            self.assertLess(r["date"], "2024-01-15")
+
+    def test_twii_summary_strictly_before_d(self):
+        ctx = market_context("2024-01-15", fx_merged(), fx_twii(), n_recent=30)
+        twii = ctx["twii"]
+        self.assertIsNotNone(twii)
+        # TWII first/last 都 < d;1/02 → 1/12
+        self.assertEqual(twii["first_date"], "2024-01-02")
+        self.assertEqual(twii["last_date"], "2024-01-12")
+        # 17000 → 17290 = +1.7058...%
+        self.assertAlmostEqual(twii["return_pct"], 1.7058823, places=4)
+
+    def test_window_caps_recent(self):
+        ctx = market_context("2024-01-15", fx_merged(), fx_twii(), n_recent=3)
+        # 最近 3 個 record(< 2024-01-15): 01-10, 01-11, 01-12
+        dates = [r["date"] for r in ctx["recent_records"]]
+        self.assertEqual(dates, ["2024-01-10", "2024-01-11", "2024-01-12"])
+
+    def test_empty_twii_returns_none_summary(self):
+        ctx = market_context("2024-01-15", fx_merged(), {}, n_recent=30)
+        self.assertIsNone(ctx["twii"])
+
+
+class TestCollect(unittest.TestCase):
+    def test_collect_returns_dataclass_with_all_fields(self):
+        # fixture 只有 12 個交易日,price_window 用 5 才有資料(預設 20 會 None)
+        result = collect(
+            symbol="2330", ticker="2330.TW", d="2024-01-15",
+            merged=fx_merged(), prices=fx_prices(),
+            twii=fx_twii(), prediction_rows=fx_prediction_rows(),
+            price_window=5,
+        )
+        # SymbolFeatures dataclass 各 field 都齊
+        self.assertIsInstance(result, SymbolFeatures)
+        self.assertEqual(result.symbol, "2330")
+        self.assertEqual(result.ticker, "2330.TW")
+        self.assertEqual(result.target_date, "2024-01-15")
+        # chip: 同 TestChipFeatures.test_counts_appearances_strictly_before_d
+        self.assertEqual(result.chip["bull_count"], 4)
+        # price: 不為 None
+        self.assertIsNotNone(result.price)
+        # past_perf: 2330 過去 long 2 次
+        self.assertEqual(result.past_perf["long_count"], 2)
+        # market_context: 近 30 天 record
+        self.assertGreater(len(result.market_context["recent_records"]), 0)
+        # 所有 record 都 < d
+        for r in result.market_context["recent_records"]:
+            self.assertLess(r["date"], "2024-01-15")
+
+    def test_collect_with_missing_price_returns_price_none(self):
+        result = collect(
+            symbol="9999", ticker="9999.TW", d="2024-01-15",
+            merged=fx_merged(), prices=fx_prices(),
+            twii=fx_twii(), prediction_rows=fx_prediction_rows(),
+        )
+        self.assertIsNone(result.price)
+        # chip / past_perf 仍可算(只是會是 0)
+        self.assertEqual(result.chip["bull_count"], 0)
+        self.assertEqual(result.past_perf["long_count"], 0)
+
+    def test_collect_is_frozen(self):
+        result = collect(
+            symbol="2330", ticker="2330.TW", d="2024-01-15",
+            merged=fx_merged(), prices=fx_prices(),
+            twii=fx_twii(), prediction_rows=fx_prediction_rows(),
+            price_window=5,
+        )
+        # frozen=True 不可被修改(FrozenInstanceError 是 dataclasses.FrozenInstanceError)
+        from dataclasses import FrozenInstanceError
+        with self.assertRaises(FrozenInstanceError):
+            result.symbol = "9999"  # type: ignore[misc]
 
 
 if __name__ == "__main__":
