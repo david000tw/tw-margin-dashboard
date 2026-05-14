@@ -166,7 +166,7 @@ def write_report(result: dict, *, base_dir: Path = REPORTS) -> Path:
     summary["entries"].append({
         "symbol": symbol, "ticker": result["ticker"],
         "status": result["status"],
-        "report_path": str(md_path.relative_to(base_dir)),
+        "report_path": md_path.relative_to(base_dir).as_posix(),
     })
     summary["last_updated"] = datetime.now().isoformat(timespec="seconds")
     sum_path.write_text(

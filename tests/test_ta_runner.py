@@ -166,6 +166,23 @@ class TestWriteReport(unittest.TestCase):
         data = json.loads(summary_path.read_text(encoding="utf-8"))
         self.assertEqual(len(data["entries"]), 2)
         self.assertEqual({e["symbol"] for e in data["entries"]}, {"2330", "2317"})
+        # report_path 必須用 / 不用 \(Windows 上 dashboard fetch 才認得)
+        for e in data["entries"]:
+            self.assertNotIn("\\", e["report_path"])
+            self.assertTrue(e["report_path"].endswith(f"{e['symbol']}.md"))
+
+    def test_same_symbol_rerun_replaces_not_duplicates(self):
+        for status in ("ok", "partial"):
+            result = {
+                "symbol": "2330", "ticker": "2330.TW", "date": "2024-01-15",
+                "outputs": {k: "stub" for k in ("market", "chip", "bull",
+                                                "bear", "trader", "risk")},
+                "status": status,
+            }
+            write_report(result, base_dir=self.tmpdir)
+        data = json.loads((self.tmpdir / "2024-01-15" / "summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(data["entries"]), 1)
+        self.assertEqual(data["entries"][0]["status"], "partial")
 
     def test_failed_status_writes_error_header(self):
         result = {
