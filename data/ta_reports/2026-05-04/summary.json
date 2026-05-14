@@ -1,0 +1,18 @@
+{
+  "date": "2026-05-04",
+  "entries": [
+    {
+      "symbol": "2330",
+      "ticker": "2330.TW",
+      "status": "ok",
+      "report_path": "2026-05-04/2330.md"
+    },
+    {
+      "symbol": "2303",
+      "ticker": "2303.TW",
+      "status": "ok",
+      "report_path": "2026-05-04/2303.md"
+    }
+  ],
+  "last_updated": "2026-05-14T23:37:45"
+}
