@@ -1,14 +1,17 @@
 """
 agents/ta_runner.py 編排邏輯與輸出測試。LLM 全部 stub,不打 subprocess。
 """
+import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from ta_runner import run_single_agent, run_pipeline  # type: ignore[import-not-found]  # noqa: E402  # pyright: ignore[reportUnusedImport]
+from ta_runner import run_single_agent, run_pipeline, write_report  # type: ignore[import-not-found]  # noqa: E402  # pyright: ignore[reportUnusedImport]
 from ta_features import SymbolFeatures  # type: ignore[import-not-found]  # noqa: E402
 
 
@@ -118,6 +121,62 @@ class TestRunPipeline(unittest.TestCase):
         stub = lambda _: "[LLM timeout]"
         result = run_pipeline(self._make_features(), llm_call=stub)
         self.assertEqual(result["status"], "failed")
+
+
+class TestWriteReport(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_writes_markdown_with_all_sections(self):
+        result = {
+            "symbol": "2330", "ticker": "2330.TW", "date": "2024-01-15",
+            "outputs": {
+                "market": "技術面看多。", "chip": "籌碼站多方。",
+                "bull": "上漲理由 X。", "bear": "下跌風險 Y。",
+                "trader": "ACTION: buy\nCONVICTION: 0.7",
+                "risk": "MAX_POSITION_PCT: 5",
+            },
+            "status": "ok",
+        }
+        path = write_report(result, base_dir=self.tmpdir)
+        self.assertTrue(path.exists())
+        text = path.read_text(encoding="utf-8")
+        # 6 個 section 都在
+        for role in ("技術分析師", "籌碼分析師", "多方研究員", "空方研究員",
+                     "交易員", "風險經理"):
+            self.assertIn(role, text)
+        # 內容都在
+        self.assertIn("技術面看多。", text)
+        self.assertIn("ACTION: buy", text)
+
+    def test_appends_summary_entry(self):
+        for sym in ("2330", "2317"):
+            result = {
+                "symbol": sym, "ticker": f"{sym}.TW", "date": "2024-01-15",
+                "outputs": {k: "stub" for k in ("market", "chip", "bull",
+                                                "bear", "trader", "risk")},
+                "status": "ok",
+            }
+            write_report(result, base_dir=self.tmpdir)
+        summary_path = self.tmpdir / "2024-01-15" / "summary.json"
+        self.assertTrue(summary_path.exists())
+        data = json.loads(summary_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(data["entries"]), 2)
+        self.assertEqual({e["symbol"] for e in data["entries"]}, {"2330", "2317"})
+
+    def test_failed_status_writes_error_header(self):
+        result = {
+            "symbol": "2330", "ticker": "2330.TW", "date": "2024-01-15",
+            "outputs": {k: "[LLM failed: timeout]" for k in (
+                "market", "chip", "bull", "bear", "trader", "risk")},
+            "status": "failed",
+        }
+        path = write_report(result, base_dir=self.tmpdir)
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("STATUS: failed", text)
 
 
 if __name__ == "__main__":

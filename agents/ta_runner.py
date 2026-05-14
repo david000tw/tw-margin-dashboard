@@ -10,7 +10,9 @@ LLM 注入方式:呼叫 run_pipeline(features, llm_call=fn) 傳入 callable,
 """
 from __future__ import annotations
 
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
@@ -108,3 +110,67 @@ def run_pipeline(features: SymbolFeatures, *, llm_call) -> dict:
         "outputs": outputs,
         "status": status,
     }
+
+
+# ── Markdown / summary 輸出 ────────────────────────────────────
+
+_ROLE_LABELS = [
+    ("market", "技術分析師"),
+    ("chip", "籌碼分析師"),
+    ("bull", "多方研究員"),
+    ("bear", "空方研究員"),
+    ("trader", "交易員"),
+    ("risk", "風險經理"),
+]
+
+
+def write_report(result: dict, *, base_dir: Path = REPORTS) -> Path:
+    """
+    把 run_pipeline 的 result 寫成 markdown,並更新 summary.json。
+    回傳 markdown 檔路徑。
+
+    summary.json 中的 `report_path` 是相對於 base_dir 的路徑
+    (例如 "2024-01-15/2330.md"),dashboard 端可直接拼 base_dir 取檔。
+    """
+    date = result["date"]
+    symbol = result["symbol"]
+    outdir = base_dir / date
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # ─ markdown ─
+    md_lines = [
+        f"# {symbol} ({result['ticker']}) 深度分析  {date}",
+        "",
+        f"STATUS: {result['status']}",
+        f"GENERATED_AT: {datetime.now().isoformat(timespec='seconds')}",
+        "",
+    ]
+    for key, label in _ROLE_LABELS:
+        md_lines.append(f"## {label}")
+        md_lines.append("")
+        md_lines.append(result["outputs"].get(key, "(無)"))
+        md_lines.append("")
+
+    md_path = outdir / f"{symbol}.md"
+    md_path.write_text("\n".join(md_lines), encoding="utf-8")
+
+    # ─ summary.json (append entry,保留既有的) ─
+    sum_path = outdir / "summary.json"
+    if sum_path.exists():
+        summary = json.loads(sum_path.read_text(encoding="utf-8"))
+    else:
+        summary = {"date": date, "entries": []}
+
+    # 同一 symbol 重跑時取代既有 entry
+    summary["entries"] = [e for e in summary["entries"] if e["symbol"] != symbol]
+    summary["entries"].append({
+        "symbol": symbol, "ticker": result["ticker"],
+        "status": result["status"],
+        "report_path": str(md_path.relative_to(base_dir)),
+    })
+    summary["last_updated"] = datetime.now().isoformat(timespec="seconds")
+    sum_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8",
+    )
+
+    return md_path
