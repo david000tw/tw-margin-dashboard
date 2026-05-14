@@ -20,19 +20,15 @@ REPORTS = DATA / "ta_reports"
 sys.path.insert(0, str(BASE / "agents"))
 sys.path.insert(0, str(BASE / "scripts"))
 
-from ta_features import SymbolFeatures  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
-from ta_prompts import (                # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
-    build_market_analyst_prompt, build_chip_analyst_prompt,
-    build_bull_researcher_prompt, build_bear_researcher_prompt,
-    build_trader_prompt, build_risk_manager_prompt,
-)
+from ta_features import SymbolFeatures  # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_prompts import build_market_analyst_prompt, build_chip_analyst_prompt, build_bull_researcher_prompt, build_bear_researcher_prompt, build_trader_prompt, build_risk_manager_prompt  # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 def run_single_agent(name: str, prompt: str, llm_call) -> str:
     """
     呼叫一次 LLM。偵測 `agents/predict.py:call_llm` 約定的失敗標記
-    ([LLM timeout] / [LLM error rc=X] ...)、空回應 → 回 `[LLM failed: <reason>]`。
-    上層收到 `[LLM failed:` 開頭就知道這個 agent 沒輸出實質內容。
+    ([LLM timeout] / [LLM error rc=X] ...)、空回應 → 回 `[LLM failed: <name>: <reason>]`。
+    `name` 帶在訊息裡讓 caller 知道是哪個 agent 掛掉(stage 1→4 全跑掛時尤其有用)。
 
     不在這裡 retry,因為 predict.py 的 call_llm 本身已會吸收 timeout/error
     而是回字串標記,retry 由 caller 決定。
@@ -40,11 +36,11 @@ def run_single_agent(name: str, prompt: str, llm_call) -> str:
     try:
         raw = llm_call(prompt)
     except Exception as e:
-        return f"[LLM failed: {type(e).__name__}: {e}]"
+        return f"[LLM failed: {name}: {type(e).__name__}: {e}]"
     if not raw:
-        return "[LLM failed: empty response]"
+        return f"[LLM failed: {name}: empty response]"
     if raw.startswith("[LLM timeout]"):
-        return "[LLM failed: timeout]"
+        return f"[LLM failed: {name}: timeout]"
     if raw.startswith("[LLM error"):
-        return f"[LLM failed: {raw}]"
+        return f"[LLM failed: {name}: {raw}]"
     return raw.strip()

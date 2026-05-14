@@ -13,23 +13,23 @@ from ta_runner import run_single_agent  # type: ignore[import-not-found]  # noqa
 
 class TestRunSingleAgent(unittest.TestCase):
     def test_happy_path_returns_llm_text(self):
-        stub = lambda p: "技術面看多,均線多頭排列。"
+        stub = lambda _: "技術面看多,均線多頭排列。"
         out = run_single_agent("market", "prompt", stub)
         self.assertEqual(out, "技術面看多,均線多頭排列。")
 
     def test_timeout_marker_returns_fallback(self):
-        stub = lambda p: "[LLM timeout]"
+        stub = lambda _: "[LLM timeout]"
         out = run_single_agent("market", "prompt", stub)
         self.assertTrue(out.startswith("[LLM failed:"))
         self.assertIn("timeout", out.lower())
 
     def test_error_marker_returns_fallback(self):
-        stub = lambda p: "[LLM error rc=1] xxx"
+        stub = lambda _: "[LLM error rc=1] xxx"
         out = run_single_agent("market", "prompt", stub)
         self.assertTrue(out.startswith("[LLM failed:"))
 
     def test_empty_response_returns_fallback(self):
-        stub = lambda p: ""
+        stub = lambda _: ""
         out = run_single_agent("market", "prompt", stub)
         self.assertTrue(out.startswith("[LLM failed:"))
         self.assertIn("empty", out.lower())
