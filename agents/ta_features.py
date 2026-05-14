@@ -93,7 +93,7 @@ def _mean(xs: list[float]) -> float:
 
 
 def price_features(
-    ticker: str, d: str, prices: dict, twii: dict,
+    ticker: str, d: str, prices: dict, twii: dict[str, float],
     *, window: int = 20,
 ) -> dict | None:
     """
@@ -138,9 +138,11 @@ def price_features(
 
     twii_start_v = twii.get(window_start)
     twii_end_v = twii.get(window_end)
+    twii_return_window: float | None
+    excess_return_window: float | None
     if twii_start_v and twii_end_v:
-        twii_return_window: float | None = (twii_end_v / twii_start_v) - 1
-        excess_return_window: float | None = return_window - twii_return_window
+        twii_return_window = (twii_end_v / twii_start_v) - 1
+        excess_return_window = return_window - twii_return_window
     else:
         twii_return_window = None
         excess_return_window = None

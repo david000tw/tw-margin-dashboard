@@ -9,14 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_features import (  # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
-    chip_features,
-    collect,
-    market_context,
-    past_perf,
-    price_features,
-    SymbolFeatures,
-)
+from ta_features import chip_features, collect, market_context, past_perf, price_features, SymbolFeatures   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 # ── Fixtures ──────────────────────────────────────────────────
