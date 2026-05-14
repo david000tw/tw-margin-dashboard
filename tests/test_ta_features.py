@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_features import chip_features   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_features import chip_features, price_features   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -69,6 +69,69 @@ class TestChipFeatures(unittest.TestCase):
         self.assertEqual(f["top5_count"], 0)
         self.assertIsNone(f["last_top5_date"])
         self.assertIsNone(f["bull_avg_rate"])
+
+
+def fx_prices():
+    """5 個 ticker × 12 dates,3008.TW 故意中間沒資料(start=2)。"""
+    return {
+        "dates": [
+            "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05",
+            "2024-01-08", "2024-01-09", "2024-01-10", "2024-01-11",
+            "2024-01-12", "2024-01-15", "2024-01-16", "2024-01-17",
+        ],
+        "prices": {
+            "2330.TW": {"start": 0, "csv": "600,602,605,610,615,612,618,620,625,622,628,630"},
+            "2454.TW": {"start": 0, "csv": "880,883,890,895,900,905,910,912,920,925,928,930"},
+            "1101.TW": {"start": 0, "csv": "40,40.5,41,41.2,40.8,40,39.8,39.5,39.2,39,38.8,38.5"},
+            "3008.TW": {"start": 2, "csv": "2500,2520,2510,2530,2550,2540,2560,2570,2580,2590"},
+            "2002.TW": {"start": 0, "csv": "23,23.2,23.5,23.3,23,22.8,22.5,22,21.8,21.5,21.2,21"},
+        },
+    }
+
+
+def fx_twii():
+    return {
+        "2024-01-02": 17000.0, "2024-01-03": 17050.0, "2024-01-04": 17080.0,
+        "2024-01-05": 17120.0, "2024-01-08": 17200.0, "2024-01-09": 17150.0,
+        "2024-01-10": 17220.0, "2024-01-11": 17260.0, "2024-01-12": 17290.0,
+        "2024-01-15": 17320.0, "2024-01-16": 17350.0, "2024-01-17": 17380.0,
+    }
+
+
+class TestPriceFeatures(unittest.TestCase):
+    def test_window_strictly_before_d(self):
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), sorted(fx_twii().keys()), window=5)
+        self.assertEqual(f["window_start"], "2024-01-08")
+        self.assertEqual(f["window_end"], "2024-01-12")
+        self.assertEqual(len(f["closes"]), 5)
+        self.assertEqual(f["closes"], [615, 612, 618, 620, 625])
+
+    def test_ma_calculations(self):
+        # MA5 = (615+612+618+620+625)/5 = 618.0
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), sorted(fx_twii().keys()), window=5)
+        self.assertAlmostEqual(f["ma5"], 618.0, places=2)
+
+    def test_relative_vs_twii(self):
+        # 2330: 615→625 = +1.626%; TWII: 17200→17290 = +0.523%; excess = +1.103%
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), sorted(fx_twii().keys()), window=5)
+        self.assertAlmostEqual(f["return_window"], 0.01626, places=4)
+        self.assertAlmostEqual(f["twii_return_window"], 0.00523, places=4)
+        self.assertAlmostEqual(f["excess_return_window"], 0.01103, places=4)
+
+    def test_late_start_ticker(self):
+        # 3008.TW start=2 (csv[0] 對應 dates[2]=01-04); window 01-08~01-12
+        # dates idx 4..8 → csv idx 2..6 → 2510, 2530, 2550, 2540, 2560
+        f = price_features("3008.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), sorted(fx_twii().keys()), window=5)
+        self.assertEqual(f["closes"], [2510, 2530, 2550, 2540, 2560])
+
+    def test_missing_ticker_returns_none(self):
+        f = price_features("9999.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), sorted(fx_twii().keys()), window=5)
+        self.assertIsNone(f)
 
 
 if __name__ == "__main__":

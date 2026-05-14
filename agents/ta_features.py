@@ -64,3 +64,87 @@ def chip_features(
         "last_top5_rate": last_top5_rate,
         "bull_avg_rate": bull_avg_rate,
     }
+
+
+def _read_closes(
+    prices: dict, ticker: str, end_idx: int, n: int,
+) -> list[float] | None:
+    entry = prices.get("prices", {}).get(ticker)
+    if not entry:
+        return None
+    start = entry["start"]
+    csv = entry["csv"].split(",")
+
+    closes: list[float] = []
+    for i in range(end_idx - n + 1, end_idx + 1):
+        if i < start or (i - start) >= len(csv):
+            return None
+        try:
+            closes.append(float(csv[i - start]))
+        except (ValueError, IndexError):
+            return None
+    return closes
+
+
+def _mean(xs: list[float]) -> float:
+    return sum(xs) / len(xs) if xs else 0.0
+
+
+def price_features(
+    ticker: str, d: str, prices: dict, twii: dict, twii_dates: list[str],
+    *, window: int = 20,
+) -> dict | None:
+    """
+    對 ticker 在 d 之前 window 個交易日的價格特徵。
+    缺價 / 找不到 ticker / window 不足 → None。
+
+    回傳:
+      window_start, window_end       回看窗的起訖日
+      closes                         window 個收盤(時序)
+      ma5, ma20, ma_window           短中長期均線
+      return_window                  window 個交易日的累積報酬
+      twii_return_window             同期 TWII 報酬
+      excess_return_window           股票報酬 - TWII 報酬
+    """
+    dates = prices.get("dates", [])
+    end_idx = -1
+    for i, dt in enumerate(dates):
+        if dt < d:
+            end_idx = i
+        else:
+            break
+    if end_idx < window - 1:
+        return None
+
+    closes = _read_closes(prices, ticker, end_idx, window)
+    if closes is None:
+        return None
+
+    ma5 = _mean(closes[-5:]) if len(closes) >= 5 else _mean(closes)
+    ma20 = _mean(closes[-20:]) if len(closes) >= 20 else _mean(closes)
+    ma_window = _mean(closes)
+
+    return_window = (closes[-1] / closes[0]) - 1 if closes[0] else 0.0
+
+    window_start = dates[end_idx - window + 1]
+    window_end = dates[end_idx]
+
+    twii_start_v = twii.get(window_start)
+    twii_end_v = twii.get(window_end)
+    if twii_start_v and twii_end_v:
+        twii_return_window = (twii_end_v / twii_start_v) - 1
+    else:
+        twii_return_window = 0.0
+    excess_return_window = return_window - twii_return_window
+
+    return {
+        "window_start": window_start,
+        "window_end": window_end,
+        "closes": closes,
+        "ma5": ma5,
+        "ma20": ma20,
+        "ma_window": ma_window,
+        "return_window": return_window,
+        "twii_return_window": twii_return_window,
+        "excess_return_window": excess_return_window,
+    }
