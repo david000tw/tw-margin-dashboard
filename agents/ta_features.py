@@ -210,7 +210,7 @@ def past_perf(symbol: str, d: str, prediction_rows: list[dict]) -> dict:
 # ── Market context (近 N 天 merged + TWII 趨勢) ─────────────────
 
 def market_context(
-    d: str, merged: list[dict], twii: dict, *, n_recent: int = 30,
+    d: str, merged: list[dict], twii: dict[str, float], *, n_recent: int = 30,
 ) -> dict:
     """近 n_recent 個交易日的 merged 摘要 + TWII 起訖。所有 record.date < d。"""
     recent = _records_before(merged, d, n_recent)
@@ -247,7 +247,7 @@ class SymbolFeatures:
 
 def collect(
     *, symbol: str, ticker: str, d: str,
-    merged: list[dict], prices: dict, twii: dict,
+    merged: list[dict], prices: dict, twii: dict[str, float],
     prediction_rows: list[dict],
     chip_window: int = 60, price_window: int = 20, market_window: int = 30,
 ) -> SymbolFeatures:
