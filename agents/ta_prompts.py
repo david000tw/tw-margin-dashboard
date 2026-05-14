@@ -119,8 +119,8 @@ def build_chip_analyst_prompt(f: SymbolFeatures) -> str:
 def build_bull_researcher_prompt(f: SymbolFeatures, prior: dict) -> str:
     return _header(f, "多方研究員") + (
         f"\n=== Stage 1 分析師報告 ===\n"
-        f"[技術分析師]\n{prior.get('market', '(無)')}\n\n"
-        f"[籌碼分析師]\n{prior.get('chip', '(無)')}\n\n"
+        f"[技術面報告]\n{prior.get('market', '(無)')}\n\n"
+        f"[籌碼面報告]\n{prior.get('chip', '(無)')}\n\n"
         "=== 你的任務 ===\n"
         "你必須站在多方立場。即使資料偏空,也要挖出可能上漲的理由 ── "
         "但理由要紮根於上述資料,不能空話。\n"
@@ -132,8 +132,8 @@ def build_bull_researcher_prompt(f: SymbolFeatures, prior: dict) -> str:
 def build_bear_researcher_prompt(f: SymbolFeatures, prior: dict) -> str:
     return _header(f, "空方研究員") + (
         f"\n=== Stage 1 分析師報告 ===\n"
-        f"[技術分析師]\n{prior.get('market', '(無)')}\n\n"
-        f"[籌碼分析師]\n{prior.get('chip', '(無)')}\n\n"
+        f"[技術面報告]\n{prior.get('market', '(無)')}\n\n"
+        f"[籌碼面報告]\n{prior.get('chip', '(無)')}\n\n"
         "=== 你的任務 ===\n"
         "你必須站在空方立場。即使資料偏多,也要找出潛在風險 ── "
         "但要紮根上述資料。\n"
@@ -145,32 +145,32 @@ def build_bear_researcher_prompt(f: SymbolFeatures, prior: dict) -> str:
 def build_trader_prompt(f: SymbolFeatures, prior: dict) -> str:
     return _header(f, "交易員") + (
         f"\n=== 前面 4 份報告 ===\n"
-        f"[技術分析師]\n{prior.get('market', '(無)')}\n\n"
-        f"[籌碼分析師]\n{prior.get('chip', '(無)')}\n\n"
-        f"[多方研究員]\n{prior.get('bull', '(無)')}\n\n"
-        f"[空方研究員]\n{prior.get('bear', '(無)')}\n\n"
+        f"[技術面報告]\n{prior.get('market', '(無)')}\n\n"
+        f"[籌碼面報告]\n{prior.get('chip', '(無)')}\n\n"
+        f"[多方論點]\n{prior.get('bull', '(無)')}\n\n"
+        f"[空方論點]\n{prior.get('bear', '(無)')}\n\n"
         "=== 你的任務 ===\n"
         "綜合上述 4 份報告,做出交易決策。\n"
         "輸出格式(嚴格遵守,每行一個欄位):\n"
         "ACTION: buy | sell | hold\n"
         "CONVICTION: 0.0 ~ 1.0(對方向的信心)\n"
         "HORIZON: short | medium | long\n"
-        "RATIONALE: <~200 字>說明為何選 buy/sell/hold,有沒有偏向多方或空方研究員\n"
+        "RATIONALE: <~200 字>說明為何選 buy/sell/hold,有沒有偏向多空哪一邊\n"
     )
 
 
 def build_risk_manager_prompt(f: SymbolFeatures, prior: dict) -> str:
     return _header(f, "風險經理") + (
         f"\n=== 前面 5 份報告 ===\n"
-        f"[技術分析師]\n{prior.get('market', '(無)')}\n\n"
-        f"[籌碼分析師]\n{prior.get('chip', '(無)')}\n\n"
-        f"[多方研究員]\n{prior.get('bull', '(無)')}\n\n"
-        f"[空方研究員]\n{prior.get('bear', '(無)')}\n\n"
-        f"[交易員決策]\n{prior.get('trader', '(無)')}\n\n"
+        f"[技術面報告]\n{prior.get('market', '(無)')}\n\n"
+        f"[籌碼面報告]\n{prior.get('chip', '(無)')}\n\n"
+        f"[多方論點]\n{prior.get('bull', '(無)')}\n\n"
+        f"[空方論點]\n{prior.get('bear', '(無)')}\n\n"
+        f"[交易決策]\n{prior.get('trader', '(無)')}\n\n"
         "=== 你的任務 ===\n"
         "做最終風險把關。即使前面看好,也要點出風險;即使前面看壞,也要點出反彈可能。\n"
         "輸出格式(嚴格遵守):\n"
         "MAX_POSITION_PCT: 0 ~ 100(建議倉位上限,佔組合 %)\n"
         "MAIN_RISKS: <條列 2-3 點>\n"
-        "REBUTTAL: <~100 字>如果不同意交易員,在這裡反駁;同意就寫「同意,理由 ...」\n"
+        "REBUTTAL: <~100 字>如果不同意上面的交易決策,在這裡反駁;同意就寫「同意,理由 ...」\n"
     )
