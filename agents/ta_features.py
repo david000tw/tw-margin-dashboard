@@ -148,3 +148,50 @@ def price_features(
         "twii_return_window": twii_return_window,
         "excess_return_window": excess_return_window,
     }
+
+
+def past_perf(symbol: str, d: str, prediction_rows: list[dict]) -> dict:
+    """
+    從 ai_predictions.jsonl rows(含 prediction + outcome 混合)統計
+    symbol 在 d 之前被推薦過幾次、勝率。
+
+    回傳:
+      long_count        該 symbol 過去在 long list 中出現次數
+      long_win_count    對應 outcome 中 long_win=True 的次數
+      short_count, short_win_count  同上,short 邊
+    """
+    sym = symbol.rstrip("*")
+    outcomes: dict[str, dict] = {}
+    for r in prediction_rows:
+        if r.get("type") != "outcome":
+            continue
+        if r.get("date", "") >= d:
+            continue
+        prev = outcomes.get(r["date"])
+        if prev is None or r["horizon"] > prev["horizon"]:
+            outcomes[r["date"]] = r
+
+    long_count = long_win = short_count = short_win = 0
+    for r in prediction_rows:
+        if r.get("type") != "prediction":
+            continue
+        if r.get("date", "") >= d:
+            continue
+        out = outcomes.get(r["date"])
+        long_syms = [e.get("symbol", "").rstrip("*") for e in r.get("long", [])]
+        short_syms = [e.get("symbol", "").rstrip("*") for e in r.get("short", [])]
+        if sym in long_syms:
+            long_count += 1
+            if out and out.get("long_win"):
+                long_win += 1
+        if sym in short_syms:
+            short_count += 1
+            if out and out.get("short_win"):
+                short_win += 1
+
+    return {
+        "long_count": long_count,
+        "long_win_count": long_win,
+        "short_count": short_count,
+        "short_win_count": short_win,
+    }

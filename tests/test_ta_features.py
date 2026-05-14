@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_features import chip_features, price_features   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_features import chip_features, price_features, past_perf   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -98,6 +98,28 @@ def fx_twii():
     }
 
 
+def fx_prediction_rows():
+    """3 筆 prediction + 對應 outcome,2330 被推薦過 2 次 long(一勝一敗)，1101 1 次 short(勝)。"""
+    return [
+        {"type": "prediction", "date": "2024-01-02", "horizons": [20],
+         "long": [{"symbol": "2330"}], "short": [{"symbol": "1101"}]},
+        {"type": "outcome", "date": "2024-01-02", "horizon": 20,
+         "long_avg_excess": +0.02, "short_avg_excess": -0.01,
+         "long_win": True, "short_win": True, "win": True,
+         "verified_at": "2024-01-30"},
+
+        {"type": "prediction", "date": "2024-01-08", "horizons": [20],
+         "long": [{"symbol": "2330"}, {"symbol": "2454"}], "short": []},
+        {"type": "outcome", "date": "2024-01-08", "horizon": 20,
+         "long_avg_excess": -0.01, "short_avg_excess": 0.0,
+         "long_win": False, "short_win": False, "win": False,
+         "verified_at": "2024-02-08"},
+
+        {"type": "prediction", "date": "2024-01-15", "horizons": [20],
+         "long": [{"symbol": "2454"}], "short": [{"symbol": "1102"}]},
+    ]
+
+
 class TestPriceFeatures(unittest.TestCase):
     def test_window_strictly_before_d(self):
         f = price_features("2330.TW", "2024-01-15", fx_prices(),
@@ -132,6 +154,35 @@ class TestPriceFeatures(unittest.TestCase):
         f = price_features("9999.TW", "2024-01-15", fx_prices(),
                             fx_twii(), sorted(fx_twii().keys()), window=5)
         self.assertIsNone(f)
+
+
+class TestPastPerf(unittest.TestCase):
+    def test_counts_past_long_appearances(self):
+        p = past_perf("2330", "2024-02-15", fx_prediction_rows())
+        self.assertEqual(p["long_count"], 2)
+        self.assertEqual(p["long_win_count"], 1)
+        self.assertEqual(p["short_count"], 0)
+
+    def test_short_side(self):
+        p = past_perf("1101", "2024-02-15", fx_prediction_rows())
+        self.assertEqual(p["short_count"], 1)
+        self.assertEqual(p["short_win_count"], 1)
+        self.assertEqual(p["long_count"], 0)
+
+    def test_excludes_prediction_on_or_after_d(self):
+        p = past_perf("2454", "2024-01-15", fx_prediction_rows())
+        self.assertEqual(p["long_count"], 1)
+        self.assertEqual(p["long_win_count"], 0)
+
+    def test_unverified_prediction_counted_but_no_win(self):
+        p = past_perf("1102", "2024-02-15", fx_prediction_rows())
+        self.assertEqual(p["short_count"], 1)
+        self.assertEqual(p["short_win_count"], 0)
+
+    def test_unseen_symbol(self):
+        p = past_perf("9999", "2024-02-15", fx_prediction_rows())
+        self.assertEqual(p["long_count"], 0)
+        self.assertEqual(p["short_count"], 0)
 
 
 if __name__ == "__main__":
