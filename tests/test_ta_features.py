@@ -168,6 +168,54 @@ class TestPriceFeatures(unittest.TestCase):
         self.assertIsNone(f["twii_return_window"])
         self.assertIsNone(f["excess_return_window"])
 
+    def test_bias_ma20_computed(self):
+        # window=5,closes=[615,612,618,620,625],ma20 fallback 到整段 mean=618
+        # bias = (625-618)/618 * 100 = 1.13%
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), window=5)
+        self.assertAlmostEqual(f["bias_ma20"], 1.13, places=1)
+
+    def test_macd_none_when_window_too_short(self):
+        # 12 日 fixture < 35 → MACD 應為 None
+        f = price_features("2330.TW", "2024-01-15", fx_prices(),
+                            fx_twii(), window=5)
+        self.assertIsNone(f["macd_dif"])
+        self.assertIsNone(f["macd_signal"])
+        self.assertIsNone(f["macd_hist"])
+
+
+class TestMacdLongWindow(unittest.TestCase):
+    """MACD 需要 >= 35 日才有意義,用合成 40 日資料測 EMA 收斂與方向。"""
+
+    def _synth_prices(self, closes) -> dict:
+        n = len(closes)
+        return {
+            "dates": [f"2024-{(i // 20) + 1:02d}-{(i % 20) + 1:02d}" for i in range(n)],
+            "prices": {"TEST.TW": {"start": 0, "csv": ",".join(str(c) for c in closes)}},
+        }
+
+    def _synth_twii(self, prices: dict) -> dict[str, float]:
+        return {d: 17000.0 for d in prices["dates"]}
+
+    def test_macd_positive_on_uptrend(self):
+        # 連續 40 日上漲 → EMA12 應持續高於 EMA26 → DIF>0、Hist 通常 >0
+        closes = [100 + i for i in range(40)]
+        prices = self._synth_prices(closes)
+        f = price_features("TEST.TW", "2026-01-01", prices,
+                            self._synth_twii(prices), window=40)
+        self.assertIsNotNone(f["macd_dif"])
+        self.assertGreater(f["macd_dif"], 0, "上升趨勢 DIF 應為正")
+        self.assertIsNotNone(f["macd_signal"])
+        self.assertIsNotNone(f["macd_hist"])
+
+    def test_macd_negative_on_downtrend(self):
+        closes = [200 - i for i in range(40)]
+        prices = self._synth_prices(closes)
+        f = price_features("TEST.TW", "2026-01-01", prices,
+                            self._synth_twii(prices), window=40)
+        self.assertIsNotNone(f["macd_dif"])
+        self.assertLess(f["macd_dif"], 0, "下降趨勢 DIF 應為負")
+
 
 class TestPastPerf(unittest.TestCase):
     def test_counts_past_long_appearances(self):

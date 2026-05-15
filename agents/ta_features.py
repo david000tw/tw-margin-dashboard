@@ -92,18 +92,52 @@ def _mean(xs: list[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
 
 
+def _ema(values: list[float], period: int) -> list[float]:
+    """
+    指數移動平均(EMA),回傳與 values 等長的 list。
+    首值用 values[0] 起算,確保不同 period 的 EMA 序列 index 對齊
+    (因此 zip(ema12, ema26) 算 DIF 不會錯位)。
+    """
+    if not values:
+        return []
+    alpha = 2.0 / (period + 1)
+    out = [values[0]]
+    for v in values[1:]:
+        out.append(alpha * v + (1 - alpha) * out[-1])
+    return out
+
+
+def _macd(closes: list[float]) -> tuple[float, float, float] | None:
+    """
+    MACD (12, 26, 9):
+      DIF = EMA12 - EMA26
+      Signal = EMA9 of DIF
+      Hist = DIF - Signal
+    需要 >= 35 個 close 才有意義(26 EMA 收斂 + 9 signal EMA)。
+    回傳最後一日 (dif, signal, hist),不足回 None。
+    """
+    if len(closes) < 35:
+        return None
+    ema12_seq = _ema(closes, 12)
+    ema26_seq = _ema(closes, 26)
+    dif_seq = [a - b for a, b in zip(ema12_seq, ema26_seq)]
+    signal_seq = _ema(dif_seq, 9)
+    dif = dif_seq[-1]
+    signal = signal_seq[-1]
+    return dif, signal, dif - signal
+
+
 def price_features(
     ticker: str, d: str, prices: dict, twii: dict[str, float],
-    *, window: int = 20,
+    *, window: int = 60,
 ) -> dict | None:
     """
     對 ticker 在 d 之前 window 個交易日的價格特徵。
     缺價 / 找不到 ticker / window 不足 → 整個函式回 None。
 
     缺 TWII anchor(window_start 或 window_end 不在 twii)時,
-    twii_return_window / excess_return_window 設為 None,
-    對齊 analyze_signals.twii_return 慣例(不靜默回 0.0 誤導下游)。
-    closes / ma / return_window 仍正常算。
+    twii_return_window / excess_return_window 設為 None。
+    MACD 在 len(closes)<35 時為 None(不足以收斂)。
 
     回傳:
       window_start, window_end       回看窗的起訖日
@@ -112,6 +146,8 @@ def price_features(
       return_window                  window 個交易日的累積報酬
       twii_return_window             同期 TWII 報酬(anchor 缺 → None)
       excess_return_window           股票報酬 - TWII 報酬(anchor 缺 → None)
+      bias_ma20                      月均線乖離 % = (close - ma20)/ma20 * 100
+      macd_dif, macd_signal, macd_hist   MACD (12,26,9), 不足 35 日 → None
     """
     dates = prices.get("dates", [])
     end_idx = -1
@@ -147,6 +183,17 @@ def price_features(
         twii_return_window = None
         excess_return_window = None
 
+    bias_ma20 = ((closes[-1] - ma20) / ma20 * 100) if ma20 else None
+
+    macd = _macd(closes)
+    macd_dif: float | None
+    macd_signal: float | None
+    macd_hist: float | None
+    if macd is None:
+        macd_dif = macd_signal = macd_hist = None
+    else:
+        macd_dif, macd_signal, macd_hist = macd
+
     return {
         "window_start": window_start,
         "window_end": window_end,
@@ -157,6 +204,10 @@ def price_features(
         "return_window": return_window,
         "twii_return_window": twii_return_window,
         "excess_return_window": excess_return_window,
+        "bias_ma20": bias_ma20,
+        "macd_dif": macd_dif,
+        "macd_signal": macd_signal,
+        "macd_hist": macd_hist,
     }
 
 
@@ -249,7 +300,7 @@ def collect(
     *, symbol: str, ticker: str, d: str,
     merged: list[dict], prices: dict, twii: dict[str, float],
     prediction_rows: list[dict],
-    chip_window: int = 60, price_window: int = 20, market_window: int = 30,
+    chip_window: int = 60, price_window: int = 60, market_window: int = 30,
 ) -> SymbolFeatures:
     """組裝單一 symbol 在 d 的完整 feature。嚴格 walk-forward。"""
     return SymbolFeatures(

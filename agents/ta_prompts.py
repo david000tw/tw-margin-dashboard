@@ -52,10 +52,28 @@ def _format_price(price: dict | None) -> str:
             f"vs TWII {twii_ret*100:+.2f}% "
             f"→ 相對表現 {excess_ret*100:+.2f}%"
         )
+    bias = price.get("bias_ma20")
+    bias_line = (
+        f"- 月均線乖離: {bias:+.2f}% (距 MA20 多遠;>0=站上 MA20)\n"
+        if bias is not None else ""
+    )
+    dif = price.get("macd_dif")
+    hist = price.get("macd_hist")
+    signal = price.get("macd_signal")
+    if dif is None or signal is None or hist is None:
+        macd_line = "- MACD(12,26,9): 資料不足 35 日,無法計算\n"
+    else:
+        cross = "黃金交叉(多)" if hist > 0 else "死亡交叉(空)"
+        macd_line = (
+            f"- MACD(12,26,9): DIF={dif:+.3f}  Signal={signal:+.3f}  "
+            f"Hist={hist:+.3f} → {cross}\n"
+        )
     return (
         f"- 回看窗: {price['window_start']} ~ {price['window_end']}\n"
         f"- 收盤序列(後 5 筆): {price['closes'][-5:]}\n"
         f"- MA5={price['ma5']:.2f}  MA20={price['ma20']:.2f}\n"
+        f"{bias_line}"
+        f"{macd_line}"
         f"{rel_line}"
     )
 
