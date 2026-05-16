@@ -115,6 +115,23 @@ def compute_outcome(
     }
 
 
+def parse_report_md(report_path: Path) -> dict[str, str]:
+    """把 ta_report 的 markdown 拆成 6 個 agent section 的 text dict。
+    回 {market, chip, bull, bear, trader, risk} → 內容 string。"""
+    text = report_path.read_text(encoding="utf-8")
+    sections = {}
+    role_keys = [
+        ("技術分析師", "market"), ("籌碼分析師", "chip"),
+        ("多方研究員", "bull"), ("空方研究員", "bear"),
+        ("交易員", "trader"), ("風險經理", "risk"),
+    ]
+    for role, key in role_keys:
+        pattern = rf"##\s*{re.escape(role)}\s*\n(.*?)(?=\n##|\Z)"
+        m = re.search(pattern, text, re.DOTALL)
+        sections[key] = m.group(1).strip() if m else ""
+    return sections
+
+
 def run_outcomes(
     *, prices: dict, twii: dict, sym2t: dict,
     reports_dir: Path = REPORTS, outcomes_dir: Path = OUTCOMES,

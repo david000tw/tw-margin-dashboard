@@ -2,13 +2,14 @@
 agents/ta_outcome.py 測試:verdict 邏輯 + T+N excess 計算。
 """
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from ta_outcome import verdict, parse_trader_section, compute_outcome   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_outcome import verdict, parse_trader_section, compute_outcome, parse_report_md   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 def fx_prices():
@@ -124,6 +125,65 @@ class TestComputeOutcome(unittest.TestCase):
             horizons=[5],
         )
         self.assertIsNone(result)
+
+
+class TestParseReportMd(unittest.TestCase):
+    def test_parses_all_six_sections(self):
+        md = """# 2330 (2330.TW) 深度分析  2024-01-15
+
+STATUS: ok
+
+## 技術分析師
+
+技術面短評內容。
+
+## 籌碼分析師
+
+籌碼面短評內容。
+
+## 多方研究員
+
+多方論述。
+
+## 空方研究員
+
+空方論述。
+
+## 交易員
+
+ACTION: hold
+CONVICTION: 0.5
+HORIZON: short
+RATIONALE: x
+
+## 風險經理
+
+MAX_POSITION_PCT: 10
+"""
+        tmp = Path(tempfile.mkdtemp()) / "r.md"
+        tmp.write_text(md, encoding="utf-8")
+        try:
+            sections = parse_report_md(tmp)
+            self.assertEqual(set(sections.keys()), {"market", "chip", "bull", "bear", "trader", "risk"})
+            self.assertIn("技術面短評", sections["market"])
+            self.assertIn("ACTION: hold", sections["trader"])
+            self.assertIn("MAX_POSITION_PCT", sections["risk"])
+        finally:
+            tmp.unlink()
+            tmp.parent.rmdir()
+
+    def test_missing_section_returns_empty_string(self):
+        md = "## 技術分析師\n只有這個。"
+        tmp = Path(tempfile.mkdtemp()) / "r.md"
+        tmp.write_text(md, encoding="utf-8")
+        try:
+            sections = parse_report_md(tmp)
+            self.assertIn("只有這個", sections["market"])
+            self.assertEqual(sections["chip"], "")
+            self.assertEqual(sections["trader"], "")
+        finally:
+            tmp.unlink()
+            tmp.parent.rmdir()
 
 
 if __name__ == "__main__":
