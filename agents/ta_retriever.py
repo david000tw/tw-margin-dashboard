@@ -17,8 +17,9 @@ from __future__ import annotations
 import json
 import re
 import sys
+import warnings
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Protocol, Sequence
 
 BASE = Path(__file__).resolve().parent.parent
 
@@ -99,3 +100,96 @@ class ClaudeRetriever:
 只回 JSON,不要任何說明:
 {{"selected": [3, 7, 15]}}
 """
+
+
+class EmbeddingRetriever:
+    """sentence-transformers cosine sim retriever。
+
+    第一次用 lazy load 模型 (~2-5 sec)。需要先:
+        pip install sentence-transformers
+    沒裝會 raise ImportError, caller(make_retriever)會 fallback 到 ClaudeRetriever。
+    """
+
+    def __init__(
+        self,
+        model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
+        _embed_fn=None,
+    ):
+        self._model_name = model_name
+        if _embed_fn is not None:
+            # 測試注入用
+            self._embed_fn = _embed_fn
+            self._model = None
+        else:
+            self._model = None  # lazy load
+            self._embed_fn = None
+
+    def _ensure_model(self):
+        if self._embed_fn is not None or self._model is not None:
+            return
+        from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
+        self._model = SentenceTransformer(self._model_name)
+        self._embed_fn = lambda texts: self._model.encode(  # type: ignore[union-attr]
+            list(texts), show_progress_bar=False, convert_to_numpy=True,
+        )
+
+    def _embed(self, texts: Sequence[str]):
+        self._ensure_model()
+        return self._embed_fn(texts)
+
+    def retrieve(
+        self, query: str, candidates: list[dict], k: int,
+    ) -> list[dict]:
+        if not candidates:
+            return []
+        import numpy as np
+        cand_texts = [(c.get("reflection") or "")[:500] for c in candidates]
+        vecs = self._embed([query] + cand_texts)
+        q_vec = vecs[0]
+        c_vecs = vecs[1:]
+        # cosine = dot / (|q|*|c|)
+        q_norm = np.linalg.norm(q_vec) + 1e-9
+        c_norms = np.linalg.norm(c_vecs, axis=1) + 1e-9
+        scores = (c_vecs @ q_vec) / (c_norms * q_norm)
+        top_idx = np.argsort(-scores)[:k]
+        return [candidates[i] for i in top_idx]
+
+
+def make_retriever(
+    name: str,
+    *,
+    primary: str = "claude",
+    _force_embedding_fail: bool = False,
+    _claude_llm=None,
+) -> LessonRetriever:
+    """retriever 工廠。name in {"claude", "embedding", "compare", "none"}。
+
+    name="embedding" 但裝套件失敗 → fallback to ClaudeRetriever + warning。
+    name="compare" → CompareRetriever (定義在 Task 5)。
+    """
+    if name == "claude":
+        return ClaudeRetriever(llm_call=_claude_llm)
+    if name == "embedding":
+        try:
+            if _force_embedding_fail:
+                raise ImportError("forced for test")
+            r = EmbeddingRetriever()
+            r._ensure_model()   # 立即 trigger lazy load,失敗才能在這 catch
+            return r
+        except ImportError as e:
+            warnings.warn(
+                f"sentence-transformers 不可用 ({e}),"
+                " fallback 到 ClaudeRetriever。"
+                " 安裝指令: pip install sentence-transformers"
+            )
+            return ClaudeRetriever(llm_call=_claude_llm)
+    if name == "compare":
+        # 在 Task 5 加 CompareRetriever
+        raise NotImplementedError("CompareRetriever 在 Task 5 實作")
+    if name == "none":
+        # null retriever 永遠回空
+        class _NullRetriever:
+            def retrieve(self, query, candidates, k):
+                return []
+        return _NullRetriever()
+    raise ValueError(f"unknown retriever name: {name}")
