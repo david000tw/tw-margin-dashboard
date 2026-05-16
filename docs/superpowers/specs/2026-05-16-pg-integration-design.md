@@ -289,17 +289,107 @@ Seed 完成後 8 張表都有 ~1971 檔 × 5+ 年資料。**你以後手動跑 `
 
 無已知。
 
+## 程度 2 — 雙向資料共享（OCR 結果同步進 PG）
+
+第一輪做完程度 1（PG → 法人日資料 單向讀）後，加程度 2：**把法人日資料 的 OCR 結果回寫進 Postgres**，讓 台股開發2 也看得到 scantrader 警戒日訊號 + bull/bear/top5 OCR 結果。
+
+### 新增 PG 表
+
+加進 `台股開發2/db/05_chip_ocr_schema.sql`（新檔，不動既有 01-04 schema）：
+
+```sql
+CREATE TABLE IF NOT EXISTS market.chip_ocr (
+    date                        DATE PRIMARY KEY,
+    rate                        INTEGER,
+    bull                        TEXT,         -- 逗號分隔股名/號
+    bear                        TEXT,
+    top5_margin_reduce_inst_buy TEXT,
+    source                      TEXT DEFAULT 'scantrader',
+    updated_at                  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chip_ocr_rate ON market.chip_ocr(rate);
+```
+
+PK=date 而非 (stock_id, date)，因為這份資料是「**全市場當日警戒結構**」（每天一個 row 涵蓋多檔股票名單），結構跟 8 張 market.* 表不同。
+
+### 新增同步腳本
+
+`法人日資料/scripts/export_chip_ocr_to_pg.py`：
+
+```python
+"""
+把 data/all_data_merged.json 全量 UPSERT 進 PG market.chip_ocr 表。
+
+用法:
+    python scripts/export_chip_ocr_to_pg.py            # 全量同步
+    python scripts/export_chip_ocr_to_pg.py --since 2026-05-01  # 增量
+
+也可在 daily-fetch 後手動加一行呼叫,把當日新增 record 同步進 PG。
+"""
+```
+
+實作要點：
+- 用 `psycopg.copy()` 或 `execute_values()` 批次 UPSERT（不要逐筆 INSERT，1183 筆要批次）
+- ON CONFLICT (date) DO UPDATE：date 已存在就更新 rate/bull/bear/top5
+- 同步單向：**只從 all_data_merged.json → PG**，不反向（OCR 結果以 merged.json 為權威源）
+
+### 資料 ownership
+
+```
+all_data_merged.json (法人日資料)     ← 權威源,human-edited OCR 結果
+        │
+        │ export_chip_ocr_to_pg.py
+        ▼ (single direction)
+market.chip_ocr (Postgres)            ← 派生 copy, 給 cross-project query 用
+```
+
+修 OCR 錯誤永遠改 `all_data_merged.json`，**不要直接改 PG**（下次 export 會覆蓋）。
+
+### 整合進 daily-fetch（optional）
+
+`.claude/commands/daily-fetch.md` 流程末加一步：
+
+```bash
+# (daily-fetch 末端,append 完成 + commit 之前)
+python scripts/export_chip_ocr_to_pg.py --since <last_appended_date>
+```
+
+PG 不可達時：警告 + 略過（不擋 daily-fetch 主流程）。
+
+### 用得到這份 PG 資料的場景
+
+1. **台股開發2 dashboard 新增頁面**「警戒日總覽」，顯示 rate 高的日期清單
+2. **cross-validate**：「2330 在 scantrader 出現於 bull 那天，PG market.institutional 的法人買賣超對得上嗎？」
+3. **PG 端 SQL 查詢**：「過去 60 天 rate ≥ 175 且 institutional foreign_net > 50M 的日期」（複合條件）
+
+法人日資料 端**第一輪不直接消費**這份 PG 資料（chip_features 還是讀 merged.json）—— PG 端的 chip_ocr 表是「給 台股開發2 dashboard / 跨專案分析用」。
+
+### 工作量估計（程度 2）
+
+| 階段 | 估時 |
+|---|---|
+| 加 `05_chip_ocr_schema.sql` + docker exec apply | 30 min |
+| 寫 `export_chip_ocr_to_pg.py` (含全量 + 增量) | 1 hr |
+| 寫測試（mock psycopg + 一次性 integration test） | 30 min |
+| 整合進 daily-fetch.md（optional） | 30 min |
+
+**程度 2 合計 ~2-2.5 hr**，疊加在程度 1 完成之後。
+
 ## 不做（YAGNI 明列）
 
-- ❌ **不寫雙寫同步邏輯**（法人日資料 → 台股開發2 PG 的 chip 資料同步）
 - ❌ **不取代** chip_features 的 OCR 結果（OCR data 是這專案獨特資產）
 - ❌ **不裝 connection pool**（psycopg 本地直連夠快）
 - ❌ **不做 PG → Parquet 緩存**
 - ❌ **不寫 web admin UI** 看 PG 狀態
 - ❌ **不自動排程** daily_update（你手動跑）
 - ❌ **不整合** valuation / monthly_revenue / financials 進 ta_features（這些是給未來 Fundamentals Analyst 用，目前只提供 read API）
+- ❌ **不做反向同步**（PG market.chip_ocr → all_data_merged.json） — merged.json 永遠是權威源
+- ❌ **不做程度 3 以上**（共享 package / 功能融合 / monorepo / 完全合併）——等實際碰到痛點再做
 
 ## 預估工作量
+
+**程度 1（read-only 整合）**：
 
 | 階段 | 估時 |
 |---|---|
@@ -308,4 +398,16 @@ Seed 完成後 8 張表都有 ~1971 檔 × 5+ 年資料。**你以後手動跑 `
 | Phase 3: `price_features` 改造 + 4 個測試 | **2 hr** |
 | Phase 4: `_format_price` 更新 + 跑 PoC 驗證 | **1-2 hr** |
 
-**總計 ~半天到一天 implementation + ~2-3 hr 等資料**。
+**程度 1 合計 ~半天到一天 implementation + ~2-3 hr 等資料**。
+
+**程度 2（OCR 結果回寫 PG）**：
+
+| 階段 | 估時 |
+|---|---|
+| Phase 5: `05_chip_ocr_schema.sql` + apply | 30 min |
+| Phase 6: `export_chip_ocr_to_pg.py` + 測試 | 1.5 hr |
+| Phase 7 (optional): 整合進 daily-fetch | 30 min |
+
+**程度 2 合計 ~2-2.5 hr**，疊在程度 1 完成之後。
+
+**全部加起來 ~1.5 天 + 等 seed 資料 2-3 hr**。
