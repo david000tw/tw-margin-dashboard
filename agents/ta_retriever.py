@@ -135,6 +135,7 @@ class EmbeddingRetriever:
 
     def _embed(self, texts: Sequence[str]):
         self._ensure_model()
+        assert self._embed_fn is not None
         return self._embed_fn(texts)
 
     def retrieve(
@@ -155,7 +156,7 @@ class EmbeddingRetriever:
         return [candidates[i] for i in top_idx]
 
 
-def make_retriever(
+def make_retriever(  # pyright: ignore[reportUnusedParameter]
     name: str,
     *,
     primary: str = "claude",
@@ -165,7 +166,7 @@ def make_retriever(
     """retriever 工廠。name in {"claude", "embedding", "compare", "none"}。
 
     name="embedding" 但裝套件失敗 → fallback to ClaudeRetriever + warning。
-    name="compare" → CompareRetriever (定義在 Task 5)。
+    name="compare" → CompareRetriever (定義在 Task 5,屆時會用 primary)。
     """
     if name == "claude":
         return ClaudeRetriever(llm_call=_claude_llm)
@@ -187,9 +188,8 @@ def make_retriever(
         # 在 Task 5 加 CompareRetriever
         raise NotImplementedError("CompareRetriever 在 Task 5 實作")
     if name == "none":
-        # null retriever 永遠回空
         class _NullRetriever:
-            def retrieve(self, query, candidates, k):
+            def retrieve(self, query, candidates, k):  # pyright: ignore[reportUnusedParameter]
                 return []
         return _NullRetriever()
     raise ValueError(f"unknown retriever name: {name}")
