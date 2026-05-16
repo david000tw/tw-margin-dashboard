@@ -15,9 +15,9 @@ def _records_before(merged: list[dict], d: str, window: int) -> list[dict]:
     return earlier[-window:]
 
 
-def _symbol_in_field(record: dict, field: str, symbol: str) -> bool:
-    """symbol 是否出現在 record[field](逗號分隔)中。處理 '*' / 空字串。"""
-    val = record.get(field) or ""
+def _symbol_in_field(record: dict, field_name: str, symbol: str) -> bool:
+    """symbol 是否出現在 record[field_name](逗號分隔)中。處理 '*' / 空字串。"""
+    val = record.get(field_name) or ""
     if not val:
         return False
     parts = [p.strip().rstrip("*") for p in val.split(",")]
