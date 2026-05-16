@@ -230,6 +230,21 @@ Commit message 規則：
 - **絕對不要** `--force`
 - push 失敗 → stop 並回報（**不要** reset 或 force）
 
+## 8.5 (Optional) 同步 OCR 結果進 PG
+
+對剛 append 的新 record(s) 同步進 `market.chip_ocr`（讓 台股開發2 那邊看得到）：
+
+```bash
+python scripts/export_chip_ocr_to_pg.py --since YYYY-MM-DD
+```
+
+`--since` 用本次補齊的第一筆日期。
+
+**PG 不可達時**：
+- script 印 `[ERR] PG 連不上` + exit 1
+- **不要擋 daily-fetch 主流程**——只是 log 警告，繼續往下走
+- merged.json 永遠是權威，PG 端的 chip_ocr 是派生 copy，下次 PG 啟動再補不晚
+
 ---
 
 # Step 9：最終報告
