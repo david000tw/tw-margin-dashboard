@@ -14,7 +14,7 @@ import os
 from typing import Optional
 
 import pandas as pd
-import psycopg
+import psycopg  # type: ignore[import-not-found]
 
 DEFAULT_DSN = "postgresql://twstock:twstock_dev_pw@localhost:5433/twstock"
 
@@ -69,5 +69,5 @@ class PGAdapter:
             cur.execute(sql, (stock_id, start, end))
             rows = cur.fetchall()
         return pd.DataFrame(
-            rows, columns=["date", "open", "high", "low", "close", "volume"],
+            rows, columns=["date", "open", "high", "low", "close", "volume"],  # type: ignore[arg-type]
         )

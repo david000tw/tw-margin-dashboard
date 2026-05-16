@@ -87,7 +87,7 @@ class TestPGAdapterMocked(unittest.TestCase):
 
     @patch("pg_adapter.psycopg")
     def test_connection_failure_raises_pgconnerror(self, mock_psycopg):
-        import psycopg as real_psycopg
+        import psycopg as real_psycopg  # type: ignore[import-not-found]
         # psycopg.connect raise → adapter 該 raise ConnectionError
         mock_psycopg.connect.side_effect = real_psycopg.OperationalError("fake fail")
         mock_psycopg.OperationalError = real_psycopg.OperationalError
@@ -113,7 +113,7 @@ class TestPGAdapterIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            import psycopg
+            import psycopg  # type: ignore[import-not-found]
             dsn = os.environ.get("PG_DSN",
                                   "postgresql://twstock:twstock_dev_pw@localhost:5433/twstock")
             conn = psycopg.connect(dsn, connect_timeout=2)
