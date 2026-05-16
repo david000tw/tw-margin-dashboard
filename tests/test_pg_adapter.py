@@ -120,7 +120,7 @@ class TestPGAdapterOtherTables(unittest.TestCase):
 
     @patch("pg_adapter.psycopg")
     def test_get_institutional(self, mock_psycopg):
-        adapter, mock_cur = self._mock_adapter_with_rows(
+        adapter, _ = self._mock_adapter_with_rows(
             mock_psycopg,
             [("2024-01-02", 1000, 500, 500, 200, 100, 100, 50, 30, 20, 620)],
         )
@@ -176,7 +176,7 @@ class TestPGAdapterOtherTables(unittest.TestCase):
             mock_psycopg,
             [("2024-01-31", 200000000)],
         )
-        df = adapter.get_monthly_revenue("2330.TW")
+        adapter.get_monthly_revenue("2330.TW")
         # SQL execute 應該只有 stock_id 一個參數
         call_args = mock_cur.execute.call_args
         self.assertEqual(len(call_args[0][1]), 1)
