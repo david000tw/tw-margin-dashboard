@@ -3,7 +3,6 @@ agents/ta_lesson_store.py 的測試。
 
 walk-forward 不變量:query_candidates(before=d) 只回 lesson.date < d。
 """
-import json
 import sys
 import tempfile
 import unittest
