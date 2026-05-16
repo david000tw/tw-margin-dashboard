@@ -324,6 +324,30 @@ class TestCollect(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             result.symbol = "9999"  # type: ignore[misc]
 
+    def test_collect_with_lessons(self):
+        sample_lesson = {
+            "id": "2024-01-02_2330", "date": "2024-01-02", "symbol": "2330",
+            "reflection": "test lesson", "tags": ["test"],
+        }
+        result = collect(
+            symbol="2330", ticker="2330.TW", d="2024-01-15",
+            merged=fx_merged(), prices=fx_prices(),
+            twii=fx_twii(), prediction_rows=fx_prediction_rows(),
+            price_window=5,
+            lessons=[sample_lesson],
+        )
+        self.assertEqual(len(result.lessons), 1)
+        self.assertEqual(result.lessons[0]["id"], "2024-01-02_2330")
+
+    def test_collect_lessons_defaults_to_empty(self):
+        result = collect(
+            symbol="2330", ticker="2330.TW", d="2024-01-15",
+            merged=fx_merged(), prices=fx_prices(),
+            twii=fx_twii(), prediction_rows=fx_prediction_rows(),
+            price_window=5,
+        )
+        self.assertEqual(result.lessons, [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
