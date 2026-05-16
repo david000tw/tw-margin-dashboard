@@ -127,6 +127,85 @@ def _macd(closes: list[float]) -> tuple[float, float, float] | None:
     return dif, signal, dif - signal
 
 
+# ── OHLCV 指標 helpers (Task 4) ──────────────────────────────
+
+
+def _atr(
+    highs: list[float], lows: list[float], closes: list[float],
+    period: int = 14,
+) -> float | None:
+    """Average True Range,需要 highs/lows/closes 各 >= period+1 個元素。
+    TR = max(high-low, |high-prev_close|, |low-prev_close|)。
+    """
+    if len(highs) < period or len(lows) < period or len(closes) < period:
+        return None
+    trs = []
+    for i in range(1, len(closes)):
+        tr = max(
+            highs[i] - lows[i],
+            abs(highs[i] - closes[i - 1]),
+            abs(lows[i] - closes[i - 1]),
+        )
+        trs.append(tr)
+    # 取最後 period 個 TR 平均
+    return sum(trs[-period:]) / period
+
+
+def _gap_count(
+    opens: list[float], closes: list[float], threshold: float = 0.005,
+) -> int:
+    """窗內跳空次數(open vs 昨日 close 偏離 > threshold)。
+    threshold 預設 0.5%。"""
+    count = 0
+    for i in range(1, len(opens)):
+        prev_close = closes[i - 1]
+        if prev_close == 0:
+            continue
+        deviation = abs(opens[i] - prev_close) / prev_close
+        if deviation > threshold:
+            count += 1
+    return count
+
+
+def _vol_ratio(
+    volumes: list[float],
+) -> tuple[float | None, float | None, float | None]:
+    """回 (avg5, avg20, ratio)。需要 >= 20 個元素,不足回 (None, None, None)。"""
+    if len(volumes) < 20:
+        return None, None, None
+    avg5 = sum(volumes[-5:]) / 5
+    avg20 = sum(volumes[-20:]) / 20
+    ratio = avg5 / avg20 if avg20 > 0 else None
+    return avg5, avg20, ratio
+
+
+def _candle_pattern(
+    open_: float, high: float, low: float, close: float,
+) -> str | None:
+    """單根 K 線型態識別:錘頭 / 十字 / None。
+
+    錘頭(hammer): 實體 < 30% 全長 + 下影線 > 60% 全長 + 收紅(close > open)
+    十字(doji): 實體 < 10% 全長
+    其他: None
+    """
+    total_range = high - low
+    if total_range <= 0:
+        return None
+    body = abs(close - open_)
+    body_pct = body / total_range
+
+    if body_pct < 0.10:
+        return "十字"
+
+    lower_shadow = min(open_, close) - low
+    lower_shadow_pct = lower_shadow / total_range
+
+    if body_pct < 0.30 and lower_shadow_pct > 0.60 and close > open_:
+        return "錘頭"
+
+    return None
+
+
 def price_features(
     ticker: str, d: str, prices: dict, twii: dict[str, float],
     *, window: int = 60,

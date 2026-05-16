@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_features import chip_features, collect, market_context, past_perf, price_features, SymbolFeatures   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_features import _atr, _candle_pattern, _gap_count, _vol_ratio, chip_features, collect, market_context, past_perf, price_features, SymbolFeatures   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -347,6 +347,78 @@ class TestCollect(unittest.TestCase):
             price_window=5,
         )
         self.assertEqual(result.lessons, [])
+
+
+class TestATR(unittest.TestCase):
+    def test_atr_basic(self):
+        # 5 日 OHLC, true range 計算對
+        # day1: H-L = 10
+        # day2: max(H-L=12, |H-prev_C|=11, |L-prev_C|=2) = 12
+        # day3: max(8, 10, 5) = 10
+        # 平均 ~ (10+12+10) / 3 ≈ 10.67 (3 日 ATR)
+        highs = [105, 112, 108]
+        lows  = [95, 100, 100]
+        closes= [100, 110, 102]
+        atr = _atr(highs, lows, closes, period=3)
+        self.assertGreater(atr, 0)
+        self.assertLess(atr, 20)
+
+    def test_atr_insufficient_data(self):
+        # 不足 period → 回 0 或 None
+        atr = _atr([100], [99], [99.5], period=14)
+        self.assertIsNone(atr)
+
+
+class TestGapCount(unittest.TestCase):
+    def test_gap_threshold(self):
+        # opens 跟前日 close 比偏離 > 0.5%
+        # day2 open 105 vs day1 close 100 → +5% → gap
+        # day3 open 103 vs day2 close 100 → +3% → gap
+        # day4 open 110 vs day3 close 110 → 0% → no gap
+        # day5 open 102 vs day4 close 103 → -1% → gap (>0.5%)
+        opens =  [100, 105, 103, 110, 102]
+        closes = [100, 100, 110, 103, 110]
+        count = _gap_count(opens, closes, threshold=0.005)
+        self.assertEqual(count, 3)
+
+    def test_no_gaps(self):
+        # 所有 open ≈ 前日 close → 0 gaps
+        opens =  [100, 100.1, 99.9, 100.2, 100.0]
+        closes = [100, 100, 100, 100, 100]
+        count = _gap_count(opens, closes, threshold=0.005)
+        self.assertEqual(count, 0)
+
+
+class TestVolumeRatio(unittest.TestCase):
+    def test_vol_ratio_5_20(self):
+        # 5 日平均 vs 20 日平均
+        vols = [1_000_000] * 15 + [2_000_000] * 5  # 後 5 日量翻倍
+        avg5, avg20, ratio = _vol_ratio(vols)
+        self.assertAlmostEqual(avg5, 2_000_000)
+        self.assertAlmostEqual(avg20, 1_250_000)
+        self.assertAlmostEqual(ratio, 1.6)
+
+    def test_vol_ratio_insufficient_data(self):
+        avg5, avg20, ratio = _vol_ratio([100, 200])
+        self.assertIsNone(avg5)
+
+
+class TestCandlePattern(unittest.TestCase):
+    def test_hammer(self):
+        # 錘頭:實體小 + 下影線長 + 收紅
+        # open=98, close=100 (實體 2), high=101, low=90 (下影線 8)
+        pattern = _candle_pattern(open_=98, high=101, low=90, close=100)
+        self.assertEqual(pattern, "錘頭")
+
+    def test_doji(self):
+        # 十字:實體 < 全長 10%
+        pattern = _candle_pattern(open_=100, high=105, low=95, close=100.2)
+        self.assertEqual(pattern, "十字")
+
+    def test_normal_candle(self):
+        # 一般 K 線(無特殊型態)
+        pattern = _candle_pattern(open_=100, high=103, low=99, close=102)
+        self.assertIsNone(pattern)
 
 
 if __name__ == "__main__":
