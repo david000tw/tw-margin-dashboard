@@ -57,17 +57,103 @@ class PGAdapter:
         self, ticker: str, start: str, end: str,
     ) -> pd.DataFrame:
         """讀 market.prices,回 date/open/high/low/close/volume DataFrame。"""
+        return self._query_range(
+            ticker, start, end, "market.prices",
+            ["date", "open", "high", "low", "close", "volume"],
+        )
+
+    def get_institutional(
+        self, ticker: str, start: str, end: str,
+    ) -> pd.DataFrame:
+        """三大法人買賣超(每日)。"""
+        return self._query_range(
+            ticker, start, end, "market.institutional",
+            ["date", "foreign_buy", "foreign_sell", "foreign_net",
+             "trust_buy", "trust_sell", "trust_net",
+             "dealer_buy", "dealer_sell", "dealer_net", "total_net"],
+        )
+
+    def get_margin(
+        self, ticker: str, start: str, end: str,
+    ) -> pd.DataFrame:
+        """融資融券餘額(每日)。"""
+        return self._query_range(
+            ticker, start, end, "market.margin",
+            ["date", "margin_balance", "margin_buy", "margin_sell",
+             "short_balance", "short_buy", "short_sell"],
+        )
+
+    def get_lending(
+        self, ticker: str, start: str, end: str,
+    ) -> pd.DataFrame:
+        """借券餘額(每日)。"""
+        return self._query_range(
+            ticker, start, end, "market.lending",
+            ["date", "lending_balance", "lending_short"],
+        )
+
+    def get_holders(
+        self, ticker: str, start: str, end: str,
+    ) -> pd.DataFrame:
+        """千張大戶 + holders_count(週頻)。"""
+        return self._query_range(
+            ticker, start, end, "market.holders",
+            ["date", "big_holders_pct", "holders_count"],
+        )
+
+    def get_valuation(
+        self, ticker: str, start: str, end: str,
+    ) -> pd.DataFrame:
+        """PE/PB/殖利率(每日)。"""
+        return self._query_range(
+            ticker, start, end, "market.valuation",
+            ["date", "pe", "pb", "dividend_yield"],
+        )
+
+    def get_monthly_revenue(self, ticker: str) -> pd.DataFrame:
+        """月營收全歷史。"""
         stock_id = _ticker_to_stock_id(ticker)
-        sql = """
-            SELECT date, open, high, low, close, volume
-            FROM market.prices
+        sql = "SELECT * FROM market.monthly_revenue WHERE stock_id = %s ORDER BY date"
+        return self._exec_query(sql, (stock_id,))
+
+    def get_financials(self, ticker: str) -> pd.DataFrame:
+        """季財報全歷史(EPS/毛利率/營業利益率/淨利率)。"""
+        stock_id = _ticker_to_stock_id(ticker)
+        sql = "SELECT * FROM market.financials WHERE stock_id = %s ORDER BY date"
+        return self._exec_query(sql, (stock_id,))
+
+    def _query_range(
+        self, ticker: str, start: str, end: str,
+        table: str, columns: list[str],
+    ) -> pd.DataFrame:
+        """共用 SELECT ... WHERE stock_id = ? AND date BETWEEN ? AND ? ORDER BY date 樣板。"""
+        stock_id = _ticker_to_stock_id(ticker)
+        cols_sql = ", ".join(columns)
+        sql = f"""
+            SELECT {cols_sql}
+            FROM {table}
             WHERE stock_id = %s AND date BETWEEN %s AND %s
             ORDER BY date
         """
+        return self._exec_query(sql, (stock_id, start, end), columns=columns)
+
+    def _exec_query(
+        self, sql: str, params: tuple,
+        columns: Optional[list[str]] = None,
+    ) -> pd.DataFrame:
         conn = self._connect()
         with conn.cursor() as cur:
-            cur.execute(sql, (stock_id, start, end))
+            cur.execute(sql, params)
             rows = cur.fetchall()
-        return pd.DataFrame(
-            rows, columns=["date", "open", "high", "low", "close", "volume"],  # type: ignore[arg-type]
-        )
+            if columns is None:
+                # auto-detect from cursor.description
+                desc = cur.description
+                try:
+                    columns = [d[0] for d in desc] if desc else []
+                except TypeError:
+                    columns = []
+        # 若 columns 為空但 rows 有資料 (e.g. mock cursor.description 拿不到欄位),
+        # 讓 pandas 自動以位置產生欄名,避免 column count mismatch。
+        if not columns and rows:
+            return pd.DataFrame(rows)
+        return pd.DataFrame(rows, columns=columns)  # type: ignore[arg-type]

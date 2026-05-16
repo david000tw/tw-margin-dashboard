@@ -107,6 +107,90 @@ class TestPGAdapterMocked(unittest.TestCase):
             self.assertIn("localhost:5433", adapter._dsn)
 
 
+class TestPGAdapterOtherTables(unittest.TestCase):
+    """驗其他 7 個 read API 的 SQL + DataFrame schema。"""
+
+    def _mock_adapter_with_rows(self, mock_psycopg, rows):
+        mock_conn = MagicMock()
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = rows
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cur
+        mock_psycopg.connect.return_value = mock_conn
+        return PGAdapter(dsn="mock://fake"), mock_cur
+
+    @patch("pg_adapter.psycopg")
+    def test_get_institutional(self, mock_psycopg):
+        adapter, mock_cur = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-02", 1000, 500, 500, 200, 100, 100, 50, 30, 20, 620)],
+        )
+        df = adapter.get_institutional("2330.TW", "2024-01-01", "2024-01-31")
+        self.assertEqual(len(df), 1)
+        for col in ("date", "foreign_net", "trust_net", "dealer_net", "total_net"):
+            self.assertIn(col, df.columns)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_margin(self, mock_psycopg):
+        adapter, _ = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-02", 5000, 100, 50, 1000, 20, 10)],
+        )
+        df = adapter.get_margin("2330.TW", "2024-01-01", "2024-01-31")
+        for col in ("date", "margin_balance", "margin_buy", "short_balance"):
+            self.assertIn(col, df.columns)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_lending(self, mock_psycopg):
+        adapter, _ = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-02", 200000, 5000)],
+        )
+        df = adapter.get_lending("2330.TW", "2024-01-01", "2024-01-31")
+        for col in ("date", "lending_balance", "lending_short"):
+            self.assertIn(col, df.columns)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_holders(self, mock_psycopg):
+        adapter, _ = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-02", 0.65, 1234)],
+        )
+        df = adapter.get_holders("2330.TW", "2024-01-01", "2024-01-31")
+        for col in ("date", "big_holders_pct", "holders_count"):
+            self.assertIn(col, df.columns)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_valuation(self, mock_psycopg):
+        adapter, _ = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-02", 25.0, 5.2, 1.8)],
+        )
+        df = adapter.get_valuation("2330.TW", "2024-01-01", "2024-01-31")
+        for col in ("date", "pe", "pb", "dividend_yield"):
+            self.assertIn(col, df.columns)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_monthly_revenue(self, mock_psycopg):
+        # monthly_revenue 沒 date range, 全歷史
+        adapter, mock_cur = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-01-31", 200000000)],
+        )
+        df = adapter.get_monthly_revenue("2330.TW")
+        # SQL execute 應該只有 stock_id 一個參數
+        call_args = mock_cur.execute.call_args
+        self.assertEqual(len(call_args[0][1]), 1)
+
+    @patch("pg_adapter.psycopg")
+    def test_get_financials(self, mock_psycopg):
+        adapter, _ = self._mock_adapter_with_rows(
+            mock_psycopg,
+            [("2024-03-31", 10.5, 0.65, 0.5, 0.45)],
+        )
+        df = adapter.get_financials("2330.TW")
+        self.assertEqual(len(df), 1)
+
+
 class TestPGAdapterIntegration(unittest.TestCase):
     """連 real PG。PG 連不上時 skip。"""
 
