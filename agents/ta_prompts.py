@@ -104,6 +104,25 @@ def _format_market(mc: dict) -> str:
     )
 
 
+def _format_lessons(lessons: list[dict]) -> str:
+    """格式化過去判斷紀錄(retriever 撈出來的歷史 lesson)。
+    空 list 回空字串(prompt 不顯示這個 section)。"""
+    if not lessons:
+        return ""
+    lines = ["\n=== 過去判斷紀錄(語意相似的歷史教訓) ==="]
+    for ln in lessons[:5]:
+        verdict = ln.get("outcome", {}).get("verdict", "?")
+        action = ln.get("outcome", {}).get("trader_action", "?")
+        ref = (ln.get("reflection") or "")[:180]
+        sym = ln.get("symbol", "?")
+        date = ln.get("date", "?")
+        lines.append(
+            f"- [{date} {sym}] Trader={action} → verdict={verdict}\n"
+            f"  反思: {ref}{'...' if len(ln.get('reflection', '')) > 180 else ''}"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _header(f: SymbolFeatures, role: str) -> str:
     return (
         f"[SYSTEM]\n你是台股分析師團隊中的「{role}」。"
@@ -114,6 +133,7 @@ def _header(f: SymbolFeatures, role: str) -> str:
         f"=== 技術面 ===\n{_format_price(f.price)}\n\n"
         f"=== 過去 AI 推薦紀錄 ===\n{_format_past_perf(f.past_perf)}\n\n"
         f"=== 大盤近況 ===\n{_format_market(f.market_context)}\n"
+        f"{_format_lessons(f.lessons)}"
     )
 
 
