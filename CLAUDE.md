@@ -81,6 +81,67 @@ dashboard_all.html:
 - OCR 信心不足的日期會寫入 `data/manual_review.txt`，下次執行自動跳過（避免排程被同一個讀錯日卡住）
 - 資料規範與 OCR 規則集中在 `scraper_guide.md`，`daily-fetch.md` 不重複這些細節
 
+## AI 預測閉環（`agents/predict.py` + `verify_predictions.py`）
+
+每日呼叫 `claude -p` 走 Claude Code 訂閱（**免 API key 免 token 費用**），對候選股 long 5 / short 5 給推薦，落地進 `data/ai_predictions.jsonl`。
+
+- **嚴格 walk-forward**：對日期 d 的 prediction，prompt context 只能來自 `< d` 的 record + twii + verified predictions。違反一次整批回填白做。
+- backfill 模式（`scripts/backfill_predictions.py`）對歷史 1182 天逐日跑，checkpoint resume
+- T+5/10/20 outcome 在 `verify_predictions.py`，excess return vs TWII
+- `data/ai_predictions_summary.json` 是派生產物給 dashboard 讀
+
+## TradingAgents-lite 多 agent 深度報告
+
+對某一日的選定股票跑 6 個 agent 深度分析（Market/Chip Analyst → Bull/Bear Researcher → Trader → Risk Manager）。
+
+- 借用 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) 的 prompt 設計，**不裝 langchain/langgraph**，重用 `predict.py:call_llm` 走訂閱
+- `agents/ta_features.collect()` 預取 chip / price / past_perf / market_context 走 walk-forward
+- `agents/ta_prompts.py` 6 個 build_*_prompt template（繁中改寫）
+- `agents/ta_runner.py` 編排 + 寫 markdown 報告到 `data/ta_reports/<date>/<symbol>.md`
+- `agents/ta_deepdive.py` CLI：`python agents/ta_deepdive.py <date> --symbols 2330,2303,... --retriever claude --model sonnet`
+- spec：`docs/superpowers/specs/2026-05-14-ta-lite-design.md`
+
+## Lesson loop（自我反思閉環，C 級 RAG）
+
+對 ta_reports 算 T+N excess outcome → LLM 反思 Trader 決策 → 寫 lesson → 下次 deepdive 撈語意相似的 lesson 塞 prompt。**嚴格 walk-forward**（lesson.date < d）。
+
+- `agents/ta_lesson_store.py` — JSONL append-only + walk-forward 查詢
+- `agents/ta_outcome.py` — verdict 分類（right_direction / right_hold / missed_long / avoided_loss / wrong_direction）
+- `agents/ta_retriever.py` — Protocol + 3 impls：
+  - **ClaudeRetriever**：claude -p LLM-as-retriever（零安裝、走訂閱）
+  - **EmbeddingRetriever**：sentence-transformers cosine sim（需 `pip install sentence-transformers ~1.5GB`）
+  - **CompareRetriever**：兩個都跑 log 差異到 `data/retriever_compare.jsonl`
+- `agents/ta_reflect.py` — Trader-only reflection（outcome → LLM → lesson + tags）
+- `agents/ta_backfill.py` — 批次回填 CLI checkpoint/resume
+- 落地檔：`data/ta_lessons.jsonl`, `data/ta_outcomes/<date>/<symbol>.json`
+- spec：`docs/superpowers/specs/2026-05-16-lesson-loop-design.md`
+- **核心不變量**：LessonStore 層守 walk-forward 過濾，retriever 不負責 date filter（即使 retriever 寫錯也不洩漏）
+
+## Postgres 整合（讀取 `台股開發2` 的 PG）
+
+法人日資料 read-only 連到另一個 repo `C:\Users\yen\Desktop\台股開發2` 啟動的 Postgres（port 5433），撈完整 OHLCV + 籌碼 + 估值。
+
+- `agents/pg_adapter.py` `PGAdapter` 提供 8 個 read API（ohlcv/institutional/margin/lending/holders/valuation/monthly_revenue/financials）
+- DSN 從 `PG_DSN` 環境變數取，預設 `postgresql://twstock:twstock_dev_pw@localhost:5433/twstock`
+- `.env` 已 gitignored；`.env.example` 是模板
+- **權威源不動**：法人日資料 的 `all_data_merged.json` 仍是 OCR 結果權威源。`market.chip_ocr` 是派生 copy（`scripts/export_chip_ocr_to_pg.py` 單向 UPSERT）
+- **PG 不可達 → graceful fallback**：`price_features` 自動退回 close-only `stock_prices.json`
+- spec：`docs/superpowers/specs/2026-05-16-pg-integration-design.md`
+- ⚠️ **Docker Desktop 4.40+ 有 Inference Manager bug**（Windows 上 Unix socket bind 失敗）。**強制用 4.39.0 或更早**；裝最新版會炸 backend。
+
+## 自訂 Sub-agent (`.claude/agents/`)
+
+3 個專案領域人格化 agent：
+
+- **chip-data-analyst** — 籌碼面老員，看 chip flow pattern，不碰 prediction / dashboard
+- **signal-skeptic** — 量化反骨派，挑 overfit 與 leakage，不接受 n<5
+- **ta-lite-critic** — TA-lite 報告評論人，抓「水內容」、給 prompt patch 建議
+
+呼叫方式：
+- 自動觸發：問題 match description 時自動派
+- 顯式：`@chip-data-analyst <task>` 或 `Task(subagent_type="signal-skeptic", ...)`
+- 改 agent.md 後要 `/reload-plugins` 才生效
+
 ## Working conventions
 
 - Append 後 dashboard 會自動看到新資料（fetch 載入），**不需要 rebuild 才能更新資料**；`rebuild` 只更新 header fallback 文字
