@@ -26,6 +26,8 @@ sys.path.insert(0, str(BASE))
 from pipeline import load_json  # type: ignore[import-not-found]
 from predict import call_llm  # type: ignore[import-not-found]
 from ta_features import collect  # type: ignore[import-not-found]
+from ta_lesson_store import LessonStore  # type: ignore[import-not-found]
+from ta_retriever import make_retriever  # type: ignore[import-not-found]
 from ta_runner import run_pipeline, write_report  # type: ignore[import-not-found]
 
 
@@ -58,6 +60,14 @@ def resolve_ticker(symbol: str, symbol_index: dict) -> str | None:
     return entry.get("ticker") if entry else None
 
 
+def _lookup_rate(merged: list[dict], d: str) -> int | None:
+    """找 d 那天的 rate(若不在 merged 回 None)。"""
+    for r in merged:
+        if r.get("date") == d:
+            return r.get("rate")
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="TradingAgents-lite 多 agent 深度分析")
     ap.add_argument("date", help="分析日(YYYY-MM-DD),嚴格 walk-forward < d")
@@ -65,6 +75,15 @@ def main() -> int:
     ap.add_argument("--model", default="sonnet", help="LLM 模型(預設 sonnet,可用 haiku)")
     ap.add_argument("--top-n", type=int, default=3, help="預設模式下 long/short 各取 top N")
     ap.add_argument("--timeout", type=int, default=180, help="單一 LLM call timeout 秒")
+    ap.add_argument("--retriever", choices=["claude", "embedding", "compare", "none"],
+                     default="none",
+                     help="lesson retrieval 後端,預設 none(不撈 lessons)")
+    ap.add_argument("--primary", choices=["claude", "embedding"], default="claude",
+                     help="compare 模式時回哪個的結果")
+    ap.add_argument("--top-lessons", type=int, default=5,
+                     help="撈 top-N 個 lesson 塞 prompt")
+    ap.add_argument("--skip-lessons", action="store_true",
+                     help="略過 lesson 撈取(等價 --retriever none)")
     args = ap.parse_args()
 
     d = args.date
@@ -97,10 +116,27 @@ def main() -> int:
             n_skipped += 1
             continue
         print(f"  {sym} ({ticker}): 跑 pipeline...", flush=True)
+        # Lesson retrieval(walk-forward: 只看 lesson.date < d)
+        lessons = []
+        if not args.skip_lessons and args.retriever != "none":
+            try:
+                store = LessonStore()
+                candidates = store.query_candidates(before=d)
+                if candidates:
+                    retriever = make_retriever(args.retriever, primary=args.primary)
+                    query = (f"日期 {d} 標的 {sym} ({ticker})。"
+                              f"當日大盤 rate={_lookup_rate(merged, d)}。"
+                              "需要找過去類似情境的判斷紀錄。")
+                    lessons = retriever.retrieve(query, candidates, k=args.top_lessons)
+                    print(f"    撈 {len(lessons)}/{len(candidates)} 個 lesson")
+            except Exception as e:
+                print(f"    [WARN] retrieval 失敗: {e},改用 lessons=[]")
+                lessons = []
         features = collect(
             symbol=sym, ticker=ticker, d=d,
             merged=merged, prices=prices, twii=twii,
             prediction_rows=prediction_rows,
+            lessons=lessons,
         )
         result = run_pipeline(features, llm_call=llm_call)
         write_report(result)
