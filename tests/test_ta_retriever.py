@@ -1,13 +1,14 @@
 """
 agents/ta_retriever.py 測試。LLM 全部 stub。
 """
+import json   # noqa: F401  # pyright: ignore[reportUnusedImport]
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agents"))
 
-from ta_retriever import ClaudeRetriever, EmbeddingRetriever, make_retriever   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
+from ta_retriever import ClaudeRetriever, CompareRetriever, EmbeddingRetriever, make_retriever   # type: ignore[import-not-found]  # noqa: E402,F401  # pyright: ignore[reportUnusedImport]
 
 
 def fx_candidates() -> list[dict]:
@@ -99,6 +100,69 @@ class TestEmbeddingRetrieverFallback(unittest.TestCase):
         stub_llm = lambda _: '{"selected": [1]}'
         r = make_retriever("embedding", _force_embedding_fail=True, _claude_llm=stub_llm)
         self.assertIsInstance(r, ClaudeRetriever)
+
+
+class TestCompareRetriever(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp_log = Path(tempfile.mkdtemp()) / "compare.jsonl"
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp_log.parent, ignore_errors=True)
+
+    def test_returns_primary_choice_and_logs_both(self):
+        import numpy as np
+
+        stub_llm = lambda _: '{"selected": [1, 2]}'
+        stub_embed = lambda texts: np.array([[i, 0] for i in range(len(texts))], dtype=np.float32)
+
+        a = EmbeddingRetriever(_embed_fn=stub_embed)
+        b = ClaudeRetriever(llm_call=stub_llm)
+        r = CompareRetriever(a=a, b=b, primary="claude", log_path=self.tmp_log)
+
+        candidates = [
+            {"id": "c1", "reflection": "x", "date": "2024-01-01"},
+            {"id": "c2", "reflection": "y", "date": "2024-01-02"},
+            {"id": "c3", "reflection": "z", "date": "2024-01-03"},
+        ]
+        result = r.retrieve("query", candidates, k=2)
+
+        # primary=claude → 回 claude 的選擇 (indices 1,2 → c1, c2)
+        self.assertEqual([l["id"] for l in result], ["c1", "c2"])
+
+        # log file 應有一行,記錄兩邊選擇
+        self.assertTrue(self.tmp_log.exists())
+        entries = [json.loads(line) for line in self.tmp_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual(len(entries), 1)
+        entry = entries[0]
+        self.assertEqual(entry["query"], "query")
+        self.assertEqual(entry["primary"], "claude")
+        self.assertIn("a_picked", entry)
+        self.assertIn("b_picked", entry)
+        self.assertEqual(entry["b_picked"], ["c1", "c2"])
+
+    def test_primary_embedding(self):
+        import numpy as np
+
+        stub_llm = lambda _: '{"selected": [3]}'
+        # stub embedder 讓 c1 跟 query 最相似
+        def stub_embed(texts):
+            return np.array([[1, 0] if i == 0 or texts[i].startswith("x") else [0, 1]
+                            for i in range(len(texts))], dtype=np.float32)
+
+        a = EmbeddingRetriever(_embed_fn=stub_embed)
+        b = ClaudeRetriever(llm_call=stub_llm)
+        r = CompareRetriever(a=a, b=b, primary="embedding", log_path=self.tmp_log)
+
+        candidates = [
+            {"id": "c1", "reflection": "x first"},
+            {"id": "c2", "reflection": "y other"},
+            {"id": "c3", "reflection": "z third"},
+        ]
+        result = r.retrieve("x query", candidates, k=1)
+        # primary=embedding → 回 embedding 選的 (c1)
+        self.assertEqual([l["id"] for l in result], ["c1"])
 
 
 if __name__ == "__main__":

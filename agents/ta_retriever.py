@@ -18,6 +18,7 @@ import json
 import re
 import sys
 import warnings
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, Protocol, Sequence
 
@@ -156,7 +157,51 @@ class EmbeddingRetriever:
         return [candidates[i] for i in top_idx]
 
 
-def make_retriever(  # pyright: ignore[reportUnusedParameter]
+COMPARE_LOG = BASE / "data" / "retriever_compare.jsonl"
+
+
+class CompareRetriever:
+    """同時跑 A (embedding) + B (claude),log 差異到 jsonl, 回 primary 的結果。"""
+
+    def __init__(
+        self,
+        a: LessonRetriever | None,
+        b: LessonRetriever,
+        primary: str = "claude",
+        log_path: Path = COMPARE_LOG,
+    ):
+        self._a = a
+        self._b = b
+        self._primary = primary
+        self._log_path = log_path
+
+    def retrieve(
+        self, query: str, candidates: list[dict], k: int,
+    ) -> list[dict]:
+        result_a = self._a.retrieve(query, candidates, k) if self._a else []
+        result_b = self._b.retrieve(query, candidates, k)
+        a_ids = [l.get("id") for l in result_a]
+        b_ids = [l.get("id") for l in result_b]
+        overlap = len(set(a_ids) & set(b_ids))
+        self._log({
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "query": query,
+            "candidate_count": len(candidates),
+            "k": k,
+            "primary": self._primary,
+            "a_picked": a_ids,
+            "b_picked": b_ids,
+            "overlap": overlap,
+        })
+        return result_a if self._primary == "embedding" else result_b
+
+    def _log(self, entry: dict) -> None:
+        self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def make_retriever(
     name: str,
     *,
     primary: str = "claude",
@@ -166,7 +211,7 @@ def make_retriever(  # pyright: ignore[reportUnusedParameter]
     """retriever 工廠。name in {"claude", "embedding", "compare", "none"}。
 
     name="embedding" 但裝套件失敗 → fallback to ClaudeRetriever + warning。
-    name="compare" → CompareRetriever (定義在 Task 5,屆時會用 primary)。
+    name="compare" → CompareRetriever (a=Embedding, b=Claude, 回 primary 結果)。
     """
     if name == "claude":
         return ClaudeRetriever(llm_call=_claude_llm)
@@ -185,8 +230,16 @@ def make_retriever(  # pyright: ignore[reportUnusedParameter]
             )
             return ClaudeRetriever(llm_call=_claude_llm)
     if name == "compare":
-        # 在 Task 5 加 CompareRetriever
-        raise NotImplementedError("CompareRetriever 在 Task 5 實作")
+        try:
+            if _force_embedding_fail:
+                raise ImportError("forced for test")
+            a: LessonRetriever | None = EmbeddingRetriever()
+            a._ensure_model()  # type: ignore[attr-defined]
+        except ImportError:
+            warnings.warn("compare 模式 embedding 不可用,a=None,只跑 b")
+            a = None
+        b = ClaudeRetriever(llm_call=_claude_llm)
+        return CompareRetriever(a=a, b=b, primary=primary)
     if name == "none":
         class _NullRetriever:
             def retrieve(self, query, candidates, k):  # pyright: ignore[reportUnusedParameter]
