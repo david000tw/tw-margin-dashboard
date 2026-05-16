@@ -29,6 +29,7 @@ from ta_features import collect  # type: ignore[import-not-found]
 from ta_lesson_store import LessonStore  # type: ignore[import-not-found]
 from ta_retriever import make_retriever  # type: ignore[import-not-found]
 from ta_runner import run_pipeline, write_report  # type: ignore[import-not-found]
+from pg_adapter import PGAdapter, ConnectionError as PGConnError  # type: ignore[import-not-found]
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -84,6 +85,8 @@ def main() -> int:
                      help="撈 top-N 個 lesson 塞 prompt")
     ap.add_argument("--skip-lessons", action="store_true",
                      help="略過 lesson 撈取(等價 --retriever none)")
+    ap.add_argument("--no-pg", action="store_true",
+                     help="不嘗試連 PG (close-only fallback,加速 debug)")
     args = ap.parse_args()
 
     d = args.date
@@ -105,6 +108,17 @@ def main() -> int:
 
     print(f"分析日: {d}  symbols: {symbols}  model: {args.model}")
     print(f"預估時間: ~{len(symbols) * 6 * 20 / 60:.1f} 分鐘(6 agents × ~20 秒/call)")
+
+    # PG adapter (probe with quick query; fail → fallback close-only)
+    pg = None
+    if not args.no_pg:
+        try:
+            pg = PGAdapter()
+            pg.get_ohlcv("2330.TW", "2024-01-01", "2024-01-02")  # probe
+            print(f"  PG 已連線 (OHLCV path 啟用)")
+        except PGConnError as e:
+            print(f"  [WARN] PG 不可達: {e}, fallback close-only")
+            pg = None
 
     llm_call = lambda p: call_llm(p, model=args.model, timeout=args.timeout)
 
@@ -137,6 +151,7 @@ def main() -> int:
             merged=merged, prices=prices, twii=twii,
             prediction_rows=prediction_rows,
             lessons=lessons,
+            pg_adapter=pg,
         )
         result = run_pipeline(features, llm_call=llm_call)
         write_report(result)
