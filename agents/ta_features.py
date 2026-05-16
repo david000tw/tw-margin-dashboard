@@ -208,17 +208,14 @@ def _candle_pattern(
 
 def price_features(
     ticker: str, d: str, prices: dict, twii: dict[str, float],
-    *, window: int = 60,
+    *, window: int = 60, pg_adapter=None,
 ) -> dict | None:
     """
     對 ticker 在 d 之前 window 個交易日的價格特徵。
-    缺價 / 找不到 ticker / window 不足 → 整個函式回 None。
 
-    缺 TWII anchor(window_start 或 window_end 不在 twii)時,
-    twii_return_window / excess_return_window 設為 None。
-    MACD 在 len(closes)<35 時為 None(不足以收斂)。
+    嘗試從 pg_adapter 拉 OHLCV (若提供)。失敗 / 缺 → fallback close-only。
 
-    回傳:
+    回傳 (見既有 docstring 加上):
       window_start, window_end       回看窗的起訖日
       closes                         window 個收盤(時序)
       ma5, ma20, ma_window           短中長期均線
@@ -227,7 +224,49 @@ def price_features(
       excess_return_window           股票報酬 - TWII 報酬(anchor 缺 → None)
       bias_ma20                      月均線乖離 % = (close - ma20)/ma20 * 100
       macd_dif, macd_signal, macd_hist   MACD (12,26,9), 不足 35 日 → None
+      ohlcv_available    True=用 PG OHLCV 路徑; False=用既有 close-only
+      atr14              ATR(14), len<14 回 None
+      atr_pct_of_close   ATR / 現價 * 100
+      gap_count_window   窗內跳空次數
+      vol_avg_5, vol_avg_20, vol_ratio_5_20
+      candle_pattern     最後一根 K 線型態
     """
+    # 先嘗試 OHLCV 路徑
+    if pg_adapter is not None:
+        try:
+            result = _price_features_from_ohlcv(
+                ticker, d, pg_adapter, twii, window=window, prices=prices,
+            )
+            if result is not None:
+                return result
+        except Exception:
+            pass  # PG 失敗 → fallback close-only
+
+    # Fallback: close-only (既有邏輯)
+    result = _price_features_close_only(ticker, d, prices, twii, window=window)
+    if result is None:
+        return None
+    # 補上 OHLCV-only 欄位 = None
+    result.update({
+        "ohlcv_available": False,
+        "atr14": None,
+        "atr_pct_of_close": None,
+        "gap_count_window": None,
+        "vol_avg_5": None,
+        "vol_avg_20": None,
+        "vol_ratio_5_20": None,
+        "candle_pattern": None,
+    })
+    return result
+
+
+def _price_features_close_only(
+    ticker: str, d: str, prices: dict, twii: dict[str, float],
+    *, window: int = 60,
+) -> dict | None:
+    """既有 close-only 邏輯,從 prices dict 拉。
+    把原 price_features 整個 function body 搬進來,return 整個 dict
+    (不要包 ohlcv_available 那些 None 欄位,留給 wrapper 補)。"""
     dates = prices.get("dates", [])
     end_idx = -1
     for i, dt in enumerate(dates):
@@ -287,6 +326,81 @@ def price_features(
         "macd_dif": macd_dif,
         "macd_signal": macd_signal,
         "macd_hist": macd_hist,
+    }
+
+
+def _price_features_from_ohlcv(
+    ticker: str, d: str, pg_adapter, twii: dict[str, float],
+    *, window: int = 60, prices: dict,
+) -> dict | None:
+    """OHLCV 路徑:從 PG 拉 OHLCV 算所有指標。
+    若 PG 沒夠資料 → 回 None 讓上層 fallback。"""
+    from datetime import datetime, timedelta
+    end_dt = datetime.strptime(d, "%Y-%m-%d") - timedelta(days=1)
+    start_dt = end_dt - timedelta(days=int(window * 1.5))   # 多抓避免遇假日
+    ohlcv = pg_adapter.get_ohlcv(
+        ticker, start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"),
+    )
+    if ohlcv.empty or len(ohlcv) < window:
+        return None    # 不足 → fallback
+
+    ohlcv = ohlcv.tail(window).reset_index(drop=True)
+    opens   = ohlcv["open"].tolist()
+    highs   = ohlcv["high"].tolist()
+    lows    = ohlcv["low"].tolist()
+    closes  = ohlcv["close"].tolist()
+    volumes = [float(v) for v in ohlcv["volume"].tolist()]
+
+    # 既有指標 (從 closes 算)
+    ma5 = _mean(closes[-5:]) if len(closes) >= 5 else _mean(closes)
+    ma20 = _mean(closes[-20:]) if len(closes) >= 20 else _mean(closes)
+    ma_window = _mean(closes)
+    return_window = (closes[-1] / closes[0]) - 1 if closes[0] else 0.0
+    window_start = str(ohlcv["date"].iloc[0])
+    window_end = str(ohlcv["date"].iloc[-1])
+    bias_ma20 = ((closes[-1] - ma20) / ma20 * 100) if ma20 else None
+    macd = _macd(closes)
+    macd_dif, macd_signal, macd_hist = (
+        macd if macd is not None else (None, None, None)
+    )
+
+    twii_start_v = twii.get(window_start)
+    twii_end_v = twii.get(window_end)
+    twii_return_window: float | None
+    excess_return_window: float | None
+    if twii_start_v and twii_end_v:
+        twii_return_window = (twii_end_v / twii_start_v) - 1
+        excess_return_window = return_window - twii_return_window
+    else:
+        twii_return_window = None
+        excess_return_window = None
+
+    # OHLCV-only 新指標
+    atr14 = _atr(highs, lows, closes, period=14)
+    atr_pct = (atr14 / closes[-1] * 100) if (atr14 is not None and closes[-1]) else None
+    gap_count = _gap_count(opens, closes, threshold=0.005)
+    vol_avg_5, vol_avg_20, vol_ratio = _vol_ratio(volumes)
+    last_pattern = _candle_pattern(
+        open_=opens[-1], high=highs[-1], low=lows[-1], close=closes[-1],
+    )
+
+    return {
+        "window_start": window_start,
+        "window_end": window_end,
+        "closes": closes,
+        "ma5": ma5, "ma20": ma20, "ma_window": ma_window,
+        "return_window": return_window,
+        "twii_return_window": twii_return_window,
+        "excess_return_window": excess_return_window,
+        "bias_ma20": bias_ma20,
+        "macd_dif": macd_dif, "macd_signal": macd_signal, "macd_hist": macd_hist,
+        "ohlcv_available": True,
+        "atr14": atr14,
+        "atr_pct_of_close": atr_pct,
+        "gap_count_window": gap_count,
+        "vol_avg_5": vol_avg_5, "vol_avg_20": vol_avg_20,
+        "vol_ratio_5_20": vol_ratio,
+        "candle_pattern": last_pattern,
     }
 
 
@@ -386,14 +500,18 @@ def collect(
     prediction_rows: list[dict],
     chip_window: int = 60, price_window: int = 60, market_window: int = 30,
     lessons: list[dict] | None = None,
+    pg_adapter=None,
 ) -> SymbolFeatures:
-    """組裝單一 symbol 在 d 的完整 feature。嚴格 walk-forward。"""
+    """組裝單一 symbol 在 d 的完整 feature。嚴格 walk-forward。
+    pg_adapter: 若提供,price_features 嘗試從 PG 拉 OHLCV 算 ATR/跳空 等。"""
     return SymbolFeatures(
         symbol=symbol,
         ticker=ticker,
         target_date=d,
         chip=chip_features(symbol, d, merged, window=chip_window),
-        price=price_features(ticker, d, prices, twii, window=price_window),
+        price=price_features(
+            ticker, d, prices, twii, window=price_window, pg_adapter=pg_adapter,
+        ),
         past_perf=past_perf(symbol, d, prediction_rows),
         market_context=market_context(d, merged, twii, n_recent=market_window),
         lessons=lessons or [],

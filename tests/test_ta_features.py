@@ -421,5 +421,65 @@ class TestCandlePattern(unittest.TestCase):
         self.assertIsNone(pattern)
 
 
+class TestPriceFeaturesOHLCV(unittest.TestCase):
+    """price_features 加 OHLCV 後的新欄位 + PG fallback 測試。"""
+
+    def _mock_pg_returning_ohlcv(self):
+        """Mock PGAdapter 回 5 日 OHLCV DataFrame。"""
+        from unittest.mock import MagicMock
+        import pandas as pd
+        adapter = MagicMock()
+        # 注意:date 欄位用 string 不是 datetime,避免 .date 屬性的 Pyright 噪音
+        adapter.get_ohlcv.return_value = pd.DataFrame({
+            "date": ["2024-01-02", "2024-01-03", "2024-01-04",
+                     "2024-01-05", "2024-01-08"],
+            "open":   [600, 605, 612, 610, 615],
+            "high":   [610, 613, 618, 622, 625],
+            "low":    [598, 603, 608, 605, 612],
+            "close":  [605, 612, 615, 618, 622],
+            "volume": [1_000_000] * 5,
+        })
+        return adapter
+
+    def test_price_features_with_ohlcv_has_new_fields(self):
+        adapter = self._mock_pg_returning_ohlcv()
+        f = price_features(
+            "2330.TW", "2024-01-10", fx_prices(), fx_twii(),
+            window=5, pg_adapter=adapter,
+        )
+        # OHLCV 路徑時應有這些新欄位
+        self.assertTrue(f["ohlcv_available"])
+        # ATR14 在 5 日資料下會回 None (不足 14 期), 接受
+        self.assertIn("atr14", f)
+        self.assertIn("gap_count_window", f)
+        self.assertIn("vol_avg_5", f)
+        self.assertIn("candle_pattern", f)
+
+    def test_price_features_fallback_to_close_only(self):
+        from unittest.mock import MagicMock
+        from pg_adapter import ConnectionError as PGConnError   # type: ignore[import-not-found]
+        adapter = MagicMock()
+        adapter.get_ohlcv.side_effect = PGConnError("fake fail")
+        f = price_features(
+            "2330.TW", "2024-01-15", fx_prices(), fx_twii(),
+            window=5, pg_adapter=adapter,
+        )
+        # Fallback: ohlcv_available=False, OHLCV-only 欄位是 None
+        self.assertFalse(f["ohlcv_available"])
+        self.assertIsNone(f["atr14"])
+        self.assertIsNone(f["candle_pattern"])
+        # 但既有的 close-only 欄位仍正常
+        self.assertEqual(f["closes"], [615, 612, 618, 620, 625])
+        self.assertAlmostEqual(f["ma5"], 618.0, places=2)
+
+    def test_price_features_no_pg_adapter_uses_close_only(self):
+        # 不傳 pg_adapter → 等同 PG 不可達, 走 close-only
+        f = price_features(
+            "2330.TW", "2024-01-15", fx_prices(), fx_twii(),
+            window=5,
+        )
+        self.assertFalse(f["ohlcv_available"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
