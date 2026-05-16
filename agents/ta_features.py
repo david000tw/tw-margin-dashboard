@@ -235,12 +235,13 @@ def price_features(
     if pg_adapter is not None:
         try:
             result = _price_features_from_ohlcv(
-                ticker, d, pg_adapter, twii, window=window, prices=prices,
+                ticker, d, pg_adapter, twii, window=window,
             )
             if result is not None:
                 return result
-        except Exception:
-            pass  # PG 失敗 → fallback close-only
+        except Exception as e:
+            import warnings
+            warnings.warn(f"OHLCV path failed for {ticker}: {e!r}, fallback close-only")
 
     # Fallback: close-only (既有邏輯)
     result = _price_features_close_only(ticker, d, prices, twii, window=window)
@@ -331,13 +332,15 @@ def _price_features_close_only(
 
 def _price_features_from_ohlcv(
     ticker: str, d: str, pg_adapter, twii: dict[str, float],
-    *, window: int = 60, prices: dict,
+    *, window: int = 60,
 ) -> dict | None:
     """OHLCV 路徑:從 PG 拉 OHLCV 算所有指標。
     若 PG 沒夠資料 → 回 None 讓上層 fallback。"""
     from datetime import datetime, timedelta
     end_dt = datetime.strptime(d, "%Y-%m-%d") - timedelta(days=1)
-    start_dt = end_dt - timedelta(days=int(window * 1.5))   # 多抓避免遇假日
+    # buffer 2.5x:60 個交易日對應 ~84 個 calendar 日(含週末),
+    # 加春節 / 國定假日要更多 → 拉 2.5x 給足
+    start_dt = end_dt - timedelta(days=int(window * 2.5))
     ohlcv = pg_adapter.get_ohlcv(
         ticker, start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"),
     )
