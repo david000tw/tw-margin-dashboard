@@ -68,12 +68,47 @@ def _format_price(price: dict | None) -> str:
             f"- MACD(12,26,9): DIF={dif:+.3f}  Signal={signal:+.3f}  "
             f"Hist={hist:+.3f} → {cross}\n"
         )
+
+    # OHLCV-only 新指標 (Task 6 新增)
+    ohlcv_lines = []
+    if price.get("ohlcv_available"):
+        atr = price.get("atr14")
+        atr_pct = price.get("atr_pct_of_close")
+        if atr is not None and atr_pct is not None:
+            volatility_label = (
+                "高波動" if atr_pct > 3 else
+                "中等波動" if atr_pct > 1.5 else "低波動"
+            )
+            ohlcv_lines.append(
+                f"- ATR14: {atr:.2f} (佔現價 {atr_pct:.2f}%, {volatility_label})"
+            )
+        gap_n = price.get("gap_count_window")
+        if gap_n is not None:
+            ohlcv_lines.append(f"- 窗內跳空 {gap_n} 次 (gap > 0.5%)")
+        v5 = price.get("vol_avg_5")
+        v20 = price.get("vol_avg_20")
+        vr = price.get("vol_ratio_5_20")
+        if v5 and v20 and vr:
+            trend = (
+                "量增" if vr > 1.2 else
+                "量縮" if vr < 0.8 else "量平"
+            )
+            ohlcv_lines.append(
+                f"- 量能: 5 日平均 {v5/1e6:.1f}M vs 20 日平均 {v20/1e6:.1f}M, "
+                f"量比 {vr:.2f} → {trend}"
+            )
+        pattern = price.get("candle_pattern")
+        if pattern:
+            ohlcv_lines.append(f"- 最近 K 線型態: {pattern}")
+    ohlcv_block = "\n".join(ohlcv_lines) + ("\n" if ohlcv_lines else "")
+
     return (
         f"- 回看窗: {price['window_start']} ~ {price['window_end']}\n"
         f"- 收盤序列(後 5 筆): {price['closes'][-5:]}\n"
         f"- MA5={price['ma5']:.2f}  MA20={price['ma20']:.2f}\n"
         f"{bias_line}"
         f"{macd_line}"
+        f"{ohlcv_block}"
         f"{rel_line}"
     )
 
